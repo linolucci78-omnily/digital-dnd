@@ -1348,7 +1348,7 @@ export default function DMPanel({ campaign, onBack }) {
       </div>
 
       {/* Contenuto */}
-      <div style={{ flex: 1, padding: "16px 20px", overflowY: "auto", maxWidth: 900, margin: "0 auto", width: "100%" }}>
+      <div style={{ flex: 1, padding: "12px", overflowY: "auto", width: "100%", height: "100%" }}>
         <AnimatePresence mode="wait">
 
           {/* ── TAB CAMPAIGN GUIDE ── */}
