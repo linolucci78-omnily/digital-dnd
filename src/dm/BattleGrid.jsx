@@ -365,7 +365,7 @@ export default function BattleGrid({
         {/* Map Container */}
         <div style={{
           position: "relative",
-          maxHeight: 1000,
+          maxHeight: 1200,
           overflow: "auto",
           background: "#050508",
           borderRadius: 8,
@@ -560,7 +560,7 @@ export default function BattleGrid({
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        maxHeight: 1060
+        maxHeight: 1260
       }}>
         <div style={{
           padding: 12,
