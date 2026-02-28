@@ -18,6 +18,7 @@ import ModalDialog from "../shared/components/ModalDialog.jsx";
 import LootDistribution from "./LootDistribution.jsx";
 import NPCManager from "./NPCManager.jsx";
 import FogOfWarEditor from "./FogOfWarEditor.jsx";
+import BattleGrid from "./BattleGrid.jsx";
 import DnDIcon from "../shared/components/DnDIcon.jsx";
 import DiceRollModal from "../shared/components/DiceRollModal.jsx";
 import { STATUS_EFFECTS } from "../shared/constants/statusEffects.js";
@@ -3606,66 +3607,13 @@ export default function DMPanel({ campaign, onBack }) {
                 />
               </div>
 
-              {/* Anteprima Mappa Corrente */}
+              {/* Battle Grid */}
               {mapUrl && (
-                <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,175,55,0.15)", borderRadius: 12, padding: 20 }}>
-                  <div style={{ fontFamily: "var(--font-heading)", fontSize: "0.8rem", color: "var(--gold)", letterSpacing: "0.15em", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-                    <DnDIcon icon="castle" size={16} /> MAPPA ATTIVA
-                  </div>
-                  <div style={{ position: "relative", width: "100%", maxWidth: 600, margin: "0 auto" }}>
-                    <img
-                      src={mapUrl}
-                      alt="Mappa di battaglia"
-                      style={{
-                        width: "100%",
-                        height: "auto",
-                        borderRadius: 8,
-                        border: "2px solid rgba(212,175,55,0.3)",
-                        boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-                      }}
-                    />
-                  </div>
-                  <div style={{ textAlign: "center", marginTop: 12, fontSize: "0.85rem", color: "var(--parchment-dark)", fontStyle: "italic" }}>
-                    Questa mappa è ora visibile sulla TV
-                  </div>
-                  <motion.button
-                    className="btn"
-                    onClick={() => {
-                      setModal({
-                        isOpen: true,
-                        type: "confirm",
-                        title: "Rimuovere la Mappa?",
-                        message: "La mappa verrà rimossa dalla TV e i giocatori non la vedranno più.",
-                        confirmText: "🗑️ Rimuovi",
-                        cancelText: "Annulla",
-                        onConfirm: async () => {
-                          await supabase.from('sessions').update({ map_url: null }).eq('id', session.id);
-                          setMapUrl(null);
-                          if (channelRef.current) {
-                            await channelRef.current.send({
-                              type: 'broadcast',
-                              event: 'map_update',
-                              payload: { mapUrl: null },
-                            });
-                          }
-                        }
-                      });
-                    }}
-                    style={{
-                      marginTop: 16,
-                      background: "rgba(192,64,64,0.2)",
-                      borderColor: "rgba(192,64,64,0.3)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                    }}
-                    whileHover={{ scale: 1.02, background: "rgba(192,64,64,0.3)" }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <DnDIcon icon="close" size={16} /> Rimuovi Mappa
-                  </motion.button>
-                </div>
+                <BattleGrid
+                  mapUrl={mapUrl}
+                  tvChannel={channelRef.current}
+                  session={session}
+                />
               )}
 
               {/* Info */}
