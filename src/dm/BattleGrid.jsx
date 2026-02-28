@@ -374,31 +374,35 @@ export default function BattleGrid({
   };
 
   return (
-    <div style={{ display: "flex", gap: 12 }}>
+    <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
       {/* Main Grid Area */}
       <div style={{
         flex: 1,
         display: "flex",
         flexDirection: "column",
-        gap: 12
+        overflow: "hidden"
       }}>
         {/* Controls */}
         <div style={{
-          background: "rgba(212,175,55,0.05)",
-          border: "1px solid rgba(212,175,55,0.15)",
-          borderRadius: 8,
-          padding: 12,
+          background: "rgba(10,10,15,0.95)",
+          borderBottom: "1px solid rgba(201,168,76,0.1)",
+          padding: "16px 24px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           flexWrap: "wrap",
-          gap: 12
+          gap: 16
         }}>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "center" }}>
             {/* Cell Size */}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <label style={{ fontSize: "0.65rem", color: "rgba(224,216,200,0.4)" }}>
-                Celle
+              <label style={{
+                fontSize: "0.7rem",
+                color: "rgba(224,216,200,0.4)",
+                letterSpacing: "0.05em",
+                textTransform: "uppercase"
+              }}>
+                Griglia
               </label>
               <input
                 type="range"
@@ -406,16 +410,21 @@ export default function BattleGrid({
                 max="80"
                 value={cellSize}
                 onChange={(e) => handleCellSizeChange(parseInt(e.target.value))}
-                style={{ width: 70, accentColor: "#DC143C" }}
+                style={{ width: 80, accentColor: "#DC143C" }}
               />
-              <span style={{ fontSize: "0.65rem", color: "#C9A84C", minWidth: 24 }}>
+              <span style={{ fontSize: "0.7rem", color: "#C9A84C", minWidth: 28 }}>
                 {cellSize}
               </span>
             </div>
 
             {/* Grid Opacity */}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <label style={{ fontSize: "0.65rem", color: "rgba(224,216,200,0.4)" }}>
+              <label style={{
+                fontSize: "0.7rem",
+                color: "rgba(224,216,200,0.4)",
+                letterSpacing: "0.05em",
+                textTransform: "uppercase"
+              }}>
                 Opacità
               </label>
               <input
@@ -424,9 +433,9 @@ export default function BattleGrid({
                 max="50"
                 value={gridOpacity * 100}
                 onChange={(e) => handleOpacityChange(parseInt(e.target.value) / 100)}
-                style={{ width: 70, accentColor: "#DC143C" }}
+                style={{ width: 80, accentColor: "#DC143C" }}
               />
-              <span style={{ fontSize: "0.65rem", color: "#C9A84C", minWidth: 24 }}>
+              <span style={{ fontSize: "0.7rem", color: "#C9A84C", minWidth: 28 }}>
                 {Math.round(gridOpacity * 100)}
               </span>
             </div>
@@ -434,8 +443,13 @@ export default function BattleGrid({
             {/* FOG BRUSH SIZE */}
             {fogEnabled && (
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <label style={{ fontSize: "0.65rem", color: "rgba(160,100,200,0.6)" }}>
-                  🌫️ Pennello
+                <label style={{
+                  fontSize: "0.7rem",
+                  color: "rgba(224,216,200,0.4)",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase"
+                }}>
+                  Pennello
                 </label>
                 <input
                   type="range"
@@ -443,9 +457,9 @@ export default function BattleGrid({
                   max="150"
                   value={fogBrushSize}
                   onChange={(e) => setFogBrushSize(parseInt(e.target.value))}
-                  style={{ width: 70, accentColor: "#9B59B6" }}
+                  style={{ width: 80, accentColor: "#DC143C" }}
                 />
-                <span style={{ fontSize: "0.65rem", color: "#9B59B6", minWidth: 24 }}>
+                <span style={{ fontSize: "0.7rem", color: "#C9A84C", minWidth: 28 }}>
                   {fogBrushSize}
                 </span>
               </div>
@@ -453,165 +467,159 @@ export default function BattleGrid({
 
             {/* FOG TOOL SELECTOR */}
             {fogEnabled && (
-              <div style={{ display: "flex", gap: 4 }}>
-                <motion.button
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
                   onClick={() => setFogTool('reveal')}
                   style={{
-                    padding: "4px 8px",
-                    fontSize: "0.5rem",
-                    border: fogTool === 'reveal' ? "1px solid #9B59B6" : "1px solid rgba(155,89,182,0.3)",
-                    background: fogTool === 'reveal' ? "rgba(155,89,182,0.3)" : "rgba(155,89,182,0.1)",
-                    color: fogTool === 'reveal' ? "#BB99CC" : "rgba(187,153,204,0.5)",
+                    padding: "6px 16px",
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "0.65rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    border: fogTool === 'reveal' ? "1px solid rgba(220,20,60,0.3)" : "1px solid rgba(220,20,60,0.15)",
+                    background: fogTool === 'reveal'
+                      ? "linear-gradient(135deg, #1a0808, #0a0505)"
+                      : "transparent",
+                    color: "#C9A84C",
                     cursor: "pointer",
-                    borderRadius: 4,
-                    fontWeight: fogTool === 'reveal' ? 700 : 400
+                    transition: "all 0.3s"
                   }}
-                  whileHover={{ background: "rgba(155,89,182,0.4)" }}
-                  whileTap={{ scale: 0.95 }}
                 >
-                  ✨ Rivela
-                </motion.button>
-                <motion.button
+                  Rivela
+                </button>
+                <button
                   onClick={() => setFogTool('hide')}
                   style={{
-                    padding: "4px 8px",
-                    fontSize: "0.5rem",
-                    border: fogTool === 'hide' ? "1px solid #9B59B6" : "1px solid rgba(155,89,182,0.3)",
-                    background: fogTool === 'hide' ? "rgba(155,89,182,0.3)" : "rgba(155,89,182,0.1)",
-                    color: fogTool === 'hide' ? "#BB99CC" : "rgba(187,153,204,0.5)",
+                    padding: "6px 16px",
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "0.65rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    border: fogTool === 'hide' ? "1px solid rgba(220,20,60,0.3)" : "1px solid rgba(220,20,60,0.15)",
+                    background: fogTool === 'hide'
+                      ? "linear-gradient(135deg, #1a0808, #0a0505)"
+                      : "transparent",
+                    color: "#C9A84C",
                     cursor: "pointer",
-                    borderRadius: 4,
-                    fontWeight: fogTool === 'hide' ? 700 : 400
+                    transition: "all 0.3s"
                   }}
-                  whileHover={{ background: "rgba(155,89,182,0.4)" }}
-                  whileTap={{ scale: 0.95 }}
                 >
-                  🌫️ Nascondi
-                </motion.button>
+                  Nascondi
+                </button>
               </div>
             )}
           </div>
 
           <div style={{ display: "flex", gap: 8 }}>
             {/* Toggle Grid */}
-            <motion.button
+            <button
               onClick={handleToggleGrid}
               style={{
-                padding: "4px 10px",
+                padding: "6px 16px",
                 fontFamily: "var(--font-heading)",
-                fontSize: "0.55rem",
+                fontSize: "0.65rem",
                 fontWeight: 700,
-                letterSpacing: "0.05em",
+                letterSpacing: "0.1em",
                 textTransform: "uppercase",
-                border: gridVisible ? "1px solid rgba(220,20,60,0.3)" : "1px solid rgba(201,168,76,0.3)",
+                border: "1px solid rgba(220,20,60,0.3)",
                 background: gridVisible
                   ? "linear-gradient(135deg, #1a0808, #0a0505)"
-                  : "linear-gradient(135deg, #4a1515, #2a0808)",
+                  : "transparent",
                 color: "#C9A84C",
                 cursor: "pointer",
-                borderRadius: 4,
+                transition: "all 0.3s"
               }}
-              whileHover={{
-                background: "linear-gradient(135deg, #2a1010, #1a0808)",
-                borderColor: "#DC143C"
-              }}
-              whileTap={{ scale: 0.98 }}
             >
               {gridVisible ? "Nascondi" : "Mostra"}
-            </motion.button>
+            </button>
 
             {/* Clear Tokens */}
             {tokens.length > 0 && (
-              <motion.button
+              <button
                 onClick={handleClearTokens}
                 style={{
-                  padding: "4px 10px",
+                  padding: "6px 16px",
                   fontFamily: "var(--font-heading)",
-                  fontSize: "0.55rem",
+                  fontSize: "0.65rem",
                   fontWeight: 700,
-                  letterSpacing: "0.05em",
+                  letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  border: "1px solid rgba(192,64,64,0.3)",
-                  background: "rgba(192,64,64,0.2)",
+                  border: "1px solid rgba(220,20,60,0.3)",
+                  background: "linear-gradient(135deg, #1a0808, #0a0505)",
                   color: "#C9A84C",
                   cursor: "pointer",
-                  borderRadius: 4,
+                  transition: "all 0.3s"
                 }}
-                whileHover={{
-                  background: "rgba(192,64,64,0.3)",
-                }}
-                whileTap={{ scale: 0.98 }}
               >
-                Cancella
-              </motion.button>
+                Cancella Token
+              </button>
             )}
 
             {/* Toggle Fog of War */}
-            <motion.button
+            <button
               onClick={handleToggleFog}
               style={{
-                padding: "4px 10px",
+                padding: "6px 16px",
                 fontFamily: "var(--font-heading)",
-                fontSize: "0.55rem",
+                fontSize: "0.65rem",
                 fontWeight: 700,
-                letterSpacing: "0.05em",
+                letterSpacing: "0.1em",
                 textTransform: "uppercase",
-                border: fogEnabled ? "1px solid rgba(155,89,182,0.5)" : "1px solid rgba(155,89,182,0.2)",
+                border: "1px solid rgba(220,20,60,0.3)",
                 background: fogEnabled
-                  ? "linear-gradient(135deg, rgba(75,0,130,0.3), rgba(138,43,226,0.2))"
-                  : "linear-gradient(135deg, rgba(75,0,130,0.1), rgba(138,43,226,0.05))",
-                color: fogEnabled ? "#BB99CC" : "rgba(187,153,204,0.5)",
+                  ? "linear-gradient(135deg, #1a0808, #0a0505)"
+                  : "transparent",
+                color: "#C9A84C",
                 cursor: "pointer",
-                borderRadius: 4,
+                transition: "all 0.3s"
               }}
-              whileHover={{
-                background: "linear-gradient(135deg, rgba(75,0,130,0.4), rgba(138,43,226,0.3))",
-                borderColor: "rgba(155,89,182,0.7)"
-              }}
-              whileTap={{ scale: 0.98 }}
             >
-              {fogEnabled ? "🌫️ Fog ON" : "🌫️ Fog OFF"}
-            </motion.button>
+              {fogEnabled ? "Fog ON" : "Fog OFF"}
+            </button>
 
             {/* Fog Actions */}
             {fogEnabled && (
               <>
-                <motion.button
+                <button
                   onClick={handleClearFog}
                   style={{
-                    padding: "4px 8px",
-                    fontSize: "0.5rem",
-                    fontWeight: 600,
-                    border: "1px solid rgba(155,89,182,0.3)",
-                    background: "rgba(155,89,182,0.15)",
-                    color: "#BB99CC",
+                    padding: "6px 16px",
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "0.65rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    border: "1px solid rgba(220,20,60,0.3)",
+                    background: "transparent",
+                    color: "#C9A84C",
                     cursor: "pointer",
-                    borderRadius: 4,
+                    transition: "all 0.3s"
                   }}
-                  whileHover={{ background: "rgba(155,89,182,0.25)" }}
-                  whileTap={{ scale: 0.95 }}
                   title="Rivela tutta la mappa"
                 >
-                  ✨ Tutto
-                </motion.button>
-                <motion.button
+                  Rivela Tutto
+                </button>
+                <button
                   onClick={handleResetFog}
                   style={{
-                    padding: "4px 8px",
-                    fontSize: "0.5rem",
-                    fontWeight: 600,
-                    border: "1px solid rgba(155,89,182,0.3)",
-                    background: "rgba(155,89,182,0.15)",
-                    color: "#BB99CC",
+                    padding: "6px 16px",
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "0.65rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    border: "1px solid rgba(220,20,60,0.3)",
+                    background: "transparent",
+                    color: "#C9A84C",
                     cursor: "pointer",
-                    borderRadius: 4,
+                    transition: "all 0.3s"
                   }}
-                  whileHover={{ background: "rgba(155,89,182,0.25)" }}
-                  whileTap={{ scale: 0.95 }}
                   title="Nascondi tutta la mappa"
                 >
-                  🌫️ Reset
-                </motion.button>
+                  Reset Fog
+                </button>
               </>
             )}
           </div>
@@ -619,15 +627,13 @@ export default function BattleGrid({
 
         {/* Map Container */}
         <div style={{
+          flex: 1,
           position: "relative",
-          maxHeight: 1200,
           overflow: "auto",
           background: "#050508",
-          borderRadius: 8,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          border: "1px solid rgba(201,168,76,0.1)"
+          justifyContent: "center"
         }}>
           <div
             ref={mapContainerRef}
@@ -769,10 +775,12 @@ export default function BattleGrid({
                 {/* Token Icon (if no image) */}
                 {!token.imgUrl && (
                   <div style={{
-                    fontSize: cellSize * 0.4,
-                    opacity: 0.6
+                    fontSize: cellSize * 0.3,
+                    fontWeight: 700,
+                    color: token.type === 'hero' ? '#C9A84C' : '#DC143C',
+                    textShadow: "0 1px 4px #000"
                   }}>
-                    {token.type === 'hero' ? '⚔️' : token.type === 'npc' ? '👤' : '☠️'}
+                    {token.name.charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
@@ -803,14 +811,13 @@ export default function BattleGrid({
         {/* Status Bar */}
         {hoveredCell && (
           <div style={{
-            padding: "6px 12px",
+            padding: "8px 24px",
             background: "rgba(10,10,15,0.95)",
-            border: "1px solid rgba(201,168,76,0.06)",
-            borderRadius: 6,
+            borderTop: "1px solid rgba(201,168,76,0.06)",
             display: "flex",
             alignItems: "center",
-            gap: 16,
-            fontSize: "0.6rem",
+            gap: 20,
+            fontSize: "0.65rem",
             color: "rgba(224,216,200,0.25)"
           }}>
             <span>
@@ -828,14 +835,12 @@ export default function BattleGrid({
 
       {/* Sidebar - Token Tray */}
       <div style={{
-        width: 180,
+        width: 220,
         background: "rgba(8,8,12,0.95)",
-        border: "1px solid rgba(201,168,76,0.06)",
-        borderRadius: 8,
+        borderLeft: "1px solid rgba(201,168,76,0.06)",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
-        maxHeight: 1260
+        overflowY: "auto"
       }}>
         <div style={{
           padding: 12,
@@ -862,13 +867,14 @@ export default function BattleGrid({
           {/* Heroes */}
           <div style={{ marginBottom: 20 }}>
             <div style={{
-              fontSize: "0.6rem",
+              fontFamily: "var(--font-heading)",
+              fontSize: "0.65rem",
               color: "rgba(201,168,76,0.4)",
-              letterSpacing: "0.1em",
-              marginBottom: 8,
+              letterSpacing: "0.15em",
+              marginBottom: 12,
               textTransform: "uppercase"
             }}>
-              ⚔️ Eroi
+              Heroes
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
               {characters.map(hero => (
@@ -909,10 +915,17 @@ export default function BattleGrid({
                       width: "80%",
                       height: "80%",
                       objectFit: "cover",
-                      borderRadius: "50%"
+                      borderRadius: "50%",
+                      mixBlendMode: "screen"
                     }} />
                   ) : (
-                    <span style={{ fontSize: "1.2rem" }}>⚔️</span>
+                    <div style={{
+                      fontSize: "1.4rem",
+                      fontWeight: 700,
+                      color: "#C9A84C"
+                    }}>
+                      {hero.name.charAt(0).toUpperCase()}
+                    </div>
                   )}
                   <div style={{
                     position: "absolute",
@@ -931,13 +944,14 @@ export default function BattleGrid({
           {/* Monsters */}
           <div style={{ marginBottom: 20 }}>
             <div style={{
-              fontSize: "0.6rem",
+              fontFamily: "var(--font-heading)",
+              fontSize: "0.65rem",
               color: "rgba(220,20,60,0.6)",
-              letterSpacing: "0.1em",
-              marginBottom: 8,
+              letterSpacing: "0.15em",
+              marginBottom: 12,
               textTransform: "uppercase"
             }}>
-              ☠️ Mostri
+              Monsters
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
               {monsters.map(monster => (
@@ -972,7 +986,13 @@ export default function BattleGrid({
                     e.currentTarget.style.transform = "scale(1)";
                   }}
                 >
-                  <span style={{ fontSize: "1.2rem" }}>☠️</span>
+                  <div style={{
+                    fontSize: "1.4rem",
+                    fontWeight: 700,
+                    color: "#DC143C"
+                  }}>
+                    {monster.name.charAt(0).toUpperCase()}
+                  </div>
                   <div style={{
                     position: "absolute",
                     bottom: -14,
@@ -991,13 +1011,14 @@ export default function BattleGrid({
           {npcs.length > 0 && (
             <div>
               <div style={{
-                fontSize: "0.6rem",
+                fontFamily: "var(--font-heading)",
+                fontSize: "0.65rem",
                 color: "rgba(201,168,76,0.4)",
-                letterSpacing: "0.1em",
-                marginBottom: 8,
+                letterSpacing: "0.15em",
+                marginBottom: 12,
                 textTransform: "uppercase"
               }}>
-                👤 NPC
+                NPCs
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {npcs.map(npc => (
@@ -1032,7 +1053,13 @@ export default function BattleGrid({
                       e.currentTarget.style.transform = "scale(1)";
                     }}
                   >
-                    <span style={{ fontSize: "1.2rem" }}>👤</span>
+                    <div style={{
+                      fontSize: "1.4rem",
+                      fontWeight: 700,
+                      color: "#C9A84C"
+                    }}>
+                      {npc.name.charAt(0).toUpperCase()}
+                    </div>
                     <div style={{
                       position: "absolute",
                       bottom: -14,
