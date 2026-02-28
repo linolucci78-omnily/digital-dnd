@@ -46,7 +46,36 @@ export default function BattleGrid({
   const [draggedTrayItem, setDraggedTrayItem] = useState(null);
   const tokenIdCounter = useRef(0);
 
+  // Fog of War state
+  const [fogEnabled, setFogEnabled] = useState(false);
+  const [fogTool, setFogTool] = useState('reveal'); // 'reveal' or 'hide'
+  const [fogBrushSize, setFogBrushSize] = useState(60);
+  const [isDrawingFog, setIsDrawingFog] = useState(false);
+  const fogCanvasRef = useRef(null);
+
   const mapContainerRef = useRef(null);
+
+  // Initialize fog canvas when map loads
+  useEffect(() => {
+    if (mapContainerRef.current && fogCanvasRef.current && mapUrl) {
+      const container = mapContainerRef.current;
+      const canvas = fogCanvasRef.current;
+      const img = container.querySelector('img');
+
+      if (img) {
+        // Set canvas size to match image
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+
+        // If fog is enabled, fill with black
+        if (fogEnabled) {
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = 'rgba(0,0,0,0.9)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+    }
+  }, [mapUrl, fogEnabled]);
 
   // Broadcast grid settings to TV
   const broadcastGridUpdate = async (settings) => {
@@ -84,6 +113,103 @@ export default function BattleGrid({
     } catch (e) {
       console.error("❌ Errore broadcast token:", e);
     }
+  };
+
+  // Broadcast fog of war update to TV
+  const broadcastFogUpdate = async (imageData) => {
+    if (!tvChannel) return;
+
+    try {
+      await tvChannel.send({
+        type: 'broadcast',
+        event: 'fog_update',
+        payload: {
+          enabled: fogEnabled,
+          imageData: imageData // Base64 PNG del canvas
+        }
+      });
+    } catch (e) {
+      console.error("❌ Errore broadcast fog:", e);
+    }
+  };
+
+  // Toggle fog of war
+  const handleToggleFog = () => {
+    const newEnabled = !fogEnabled;
+    setFogEnabled(newEnabled);
+
+    // Se disabilito, broadcast fog disabilitata
+    if (!newEnabled && tvChannel) {
+      tvChannel.send({
+        type: 'broadcast',
+        event: 'fog_update',
+        payload: { enabled: false }
+      });
+    } else if (newEnabled && fogCanvasRef.current) {
+      // Se abilito, inizializza canvas completamente nero
+      const canvas = fogCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(0,0,0,0.9)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      broadcastFogUpdate(canvas.toDataURL());
+    }
+  };
+
+  // Clear fog (reveal all)
+  const handleClearFog = () => {
+    if (!fogCanvasRef.current) return;
+    const canvas = fogCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    broadcastFogUpdate(canvas.toDataURL());
+  };
+
+  // Reset fog (hide all)
+  const handleResetFog = () => {
+    if (!fogCanvasRef.current) return;
+    const canvas = fogCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgba(0,0,0,0.9)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    broadcastFogUpdate(canvas.toDataURL());
+  };
+
+  // Fog drawing handlers
+  const handleFogMouseDown = (e) => {
+    if (!fogEnabled) return;
+    setIsDrawingFog(true);
+    drawFog(e);
+  };
+
+  const handleFogMouseMove = (e) => {
+    if (!fogEnabled || !isDrawingFog) return;
+    drawFog(e);
+  };
+
+  const handleFogMouseUp = () => {
+    if (!isDrawingFog) return;
+    setIsDrawingFog(false);
+    // Broadcast final state
+    if (fogCanvasRef.current) {
+      broadcastFogUpdate(fogCanvasRef.current.toDataURL());
+    }
+  };
+
+  const drawFog = (e) => {
+    if (!fogCanvasRef.current || !mapContainerRef.current) return;
+
+    const canvas = fogCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const rect = mapContainerRef.current.getBoundingClientRect();
+
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    ctx.globalCompositeOperation = fogTool === 'reveal' ? 'destination-out' : 'source-over';
+    ctx.fillStyle = 'rgba(0,0,0,0.9)';
+    ctx.beginPath();
+    ctx.arc(x, y, fogBrushSize / 2, 0, Math.PI * 2);
+    ctx.fill();
   };
 
   // Update cell size
@@ -304,6 +430,66 @@ export default function BattleGrid({
                 {Math.round(gridOpacity * 100)}
               </span>
             </div>
+
+            {/* FOG BRUSH SIZE */}
+            {fogEnabled && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <label style={{ fontSize: "0.65rem", color: "rgba(160,100,200,0.6)" }}>
+                  🌫️ Pennello
+                </label>
+                <input
+                  type="range"
+                  min="20"
+                  max="150"
+                  value={fogBrushSize}
+                  onChange={(e) => setFogBrushSize(parseInt(e.target.value))}
+                  style={{ width: 70, accentColor: "#9B59B6" }}
+                />
+                <span style={{ fontSize: "0.65rem", color: "#9B59B6", minWidth: 24 }}>
+                  {fogBrushSize}
+                </span>
+              </div>
+            )}
+
+            {/* FOG TOOL SELECTOR */}
+            {fogEnabled && (
+              <div style={{ display: "flex", gap: 4 }}>
+                <motion.button
+                  onClick={() => setFogTool('reveal')}
+                  style={{
+                    padding: "4px 8px",
+                    fontSize: "0.5rem",
+                    border: fogTool === 'reveal' ? "1px solid #9B59B6" : "1px solid rgba(155,89,182,0.3)",
+                    background: fogTool === 'reveal' ? "rgba(155,89,182,0.3)" : "rgba(155,89,182,0.1)",
+                    color: fogTool === 'reveal' ? "#BB99CC" : "rgba(187,153,204,0.5)",
+                    cursor: "pointer",
+                    borderRadius: 4,
+                    fontWeight: fogTool === 'reveal' ? 700 : 400
+                  }}
+                  whileHover={{ background: "rgba(155,89,182,0.4)" }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  ✨ Rivela
+                </motion.button>
+                <motion.button
+                  onClick={() => setFogTool('hide')}
+                  style={{
+                    padding: "4px 8px",
+                    fontSize: "0.5rem",
+                    border: fogTool === 'hide' ? "1px solid #9B59B6" : "1px solid rgba(155,89,182,0.3)",
+                    background: fogTool === 'hide' ? "rgba(155,89,182,0.3)" : "rgba(155,89,182,0.1)",
+                    color: fogTool === 'hide' ? "#BB99CC" : "rgba(187,153,204,0.5)",
+                    cursor: "pointer",
+                    borderRadius: 4,
+                    fontWeight: fogTool === 'hide' ? 700 : 400
+                  }}
+                  whileHover={{ background: "rgba(155,89,182,0.4)" }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  🌫️ Nascondi
+                </motion.button>
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", gap: 8 }}>
@@ -358,6 +544,75 @@ export default function BattleGrid({
               >
                 Cancella
               </motion.button>
+            )}
+
+            {/* Toggle Fog of War */}
+            <motion.button
+              onClick={handleToggleFog}
+              style={{
+                padding: "4px 10px",
+                fontFamily: "var(--font-heading)",
+                fontSize: "0.55rem",
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+                border: fogEnabled ? "1px solid rgba(155,89,182,0.5)" : "1px solid rgba(155,89,182,0.2)",
+                background: fogEnabled
+                  ? "linear-gradient(135deg, rgba(75,0,130,0.3), rgba(138,43,226,0.2))"
+                  : "linear-gradient(135deg, rgba(75,0,130,0.1), rgba(138,43,226,0.05))",
+                color: fogEnabled ? "#BB99CC" : "rgba(187,153,204,0.5)",
+                cursor: "pointer",
+                borderRadius: 4,
+              }}
+              whileHover={{
+                background: "linear-gradient(135deg, rgba(75,0,130,0.4), rgba(138,43,226,0.3))",
+                borderColor: "rgba(155,89,182,0.7)"
+              }}
+              whileTap={{ scale: 0.98 }}
+            >
+              {fogEnabled ? "🌫️ Fog ON" : "🌫️ Fog OFF"}
+            </motion.button>
+
+            {/* Fog Actions */}
+            {fogEnabled && (
+              <>
+                <motion.button
+                  onClick={handleClearFog}
+                  style={{
+                    padding: "4px 8px",
+                    fontSize: "0.5rem",
+                    fontWeight: 600,
+                    border: "1px solid rgba(155,89,182,0.3)",
+                    background: "rgba(155,89,182,0.15)",
+                    color: "#BB99CC",
+                    cursor: "pointer",
+                    borderRadius: 4,
+                  }}
+                  whileHover={{ background: "rgba(155,89,182,0.25)" }}
+                  whileTap={{ scale: 0.95 }}
+                  title="Rivela tutta la mappa"
+                >
+                  ✨ Tutto
+                </motion.button>
+                <motion.button
+                  onClick={handleResetFog}
+                  style={{
+                    padding: "4px 8px",
+                    fontSize: "0.5rem",
+                    fontWeight: 600,
+                    border: "1px solid rgba(155,89,182,0.3)",
+                    background: "rgba(155,89,182,0.15)",
+                    color: "#BB99CC",
+                    cursor: "pointer",
+                    borderRadius: 4,
+                  }}
+                  whileHover={{ background: "rgba(155,89,182,0.25)" }}
+                  whileTap={{ scale: 0.95 }}
+                  title="Nascondi tutta la mappa"
+                >
+                  🌫️ Reset
+                </motion.button>
+              </>
             )}
           </div>
         </div>
@@ -522,6 +777,26 @@ export default function BattleGrid({
                 )}
               </div>
             ))}
+
+            {/* FOG OF WAR CANVAS */}
+            {fogEnabled && mapUrl && (
+              <canvas
+                ref={fogCanvasRef}
+                onMouseDown={handleFogMouseDown}
+                onMouseMove={handleFogMouseMove}
+                onMouseUp={handleFogMouseUp}
+                onMouseLeave={handleFogMouseUp}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  zIndex: 30,
+                  cursor: fogTool === 'reveal' ? 'crosshair' : 'cell',
+                  pointerEvents: 'auto'
+                }}
+              />
+            )}
           </div>
         </div>
 

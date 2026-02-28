@@ -1028,6 +1028,12 @@ export default function TVScreen({ joinCode: propJoinCode }) {
   });
   const [battleTokens, setBattleTokens] = useState([]);
 
+  // Fog of War State
+  const [fogOfWar, setFogOfWar] = useState({
+    enabled: false,
+    imageData: null
+  });
+
   const [loading, setLoading] = useState(true);
   const [joinCode, setJoinCode] = useState(propJoinCode || "");
   const [inputCode, setInputCode] = useState("");
@@ -1056,6 +1062,15 @@ export default function TVScreen({ joinCode: propJoinCode }) {
   // Exploration Mode (turni fuori combattimento)
   const [explorationMode, setExplorationMode] = useState(false);
   const [explorationTurnIndex, setExplorationTurnIndex] = useState(0);
+
+  // Update battle token positions when grid cellSize changes
+  useEffect(() => {
+    setBattleTokens(prev => prev.map(token => ({
+      ...token,
+      x: token.gridCol * battleGrid.cellSize,
+      y: token.gridRow * battleGrid.cellSize
+    })));
+  }, [battleGrid.cellSize]);
 
   // Combat Log
   const [combatLog, setCombatLog] = useState([]);
@@ -1860,6 +1875,13 @@ export default function TVScreen({ joinCode: propJoinCode }) {
           setBattleTokens([]);
         }
       })
+      .on("broadcast", { event: "fog_update" }, ({ payload }) => {
+        console.log("📺 TV riceve fog_update:", payload);
+        setFogOfWar({
+          enabled: payload.enabled || false,
+          imageData: payload.imageData || null
+        });
+      })
       .on("broadcast", { event: "scene_change" }, async ({ payload }) => {
         console.log("📺 TV riceve scene_change:", payload);
         setCurrentLocation({
@@ -2325,6 +2347,22 @@ export default function TVScreen({ joinCode: propJoinCode }) {
                   )}
                 </motion.div>
               ))}
+
+              {/* FOG OF WAR LAYER */}
+              {fogOfWar.enabled && fogOfWar.imageData && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    zIndex: 35,
+                    pointerEvents: "none",
+                    backgroundImage: `url(${fogOfWar.imageData})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat"
+                  }}
+                />
+              )}
 
               {/* Initiative Carousel in alto - RIMOSSO: ora usiamo quello nuovo più in basso */}
 
