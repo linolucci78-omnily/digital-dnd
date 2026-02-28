@@ -1019,6 +1019,15 @@ export default function TVScreen({ joinCode: propJoinCode }) {
   const [diceRoll, setDiceRoll] = useState(null);
   const [mapUrl, setMapUrl] = useState(null);
   const [tokenPositions, setTokenPositions] = useState({});
+
+  // Battle Grid State
+  const [battleGrid, setBattleGrid] = useState({
+    cellSize: 50,
+    gridOpacity: 0.15,
+    gridVisible: true
+  });
+  const [battleTokens, setBattleTokens] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [joinCode, setJoinCode] = useState(propJoinCode || "");
   const [inputCode, setInputCode] = useState("");
@@ -1825,6 +1834,32 @@ export default function TVScreen({ joinCode: propJoinCode }) {
         console.log("📺 TV riceve mappa:", payload);
         setMapUrl(payload.mapUrl);
       })
+      .on("broadcast", { event: "grid_update" }, ({ payload }) => {
+        console.log("📺 TV riceve grid_update:", payload);
+        setBattleGrid(prev => ({ ...prev, ...payload }));
+      })
+      .on("broadcast", { event: "token_update" }, ({ payload }) => {
+        console.log("📺 TV riceve token_update:", payload);
+        const { action, token } = payload;
+
+        if (action === 'add') {
+          setBattleTokens(prev => [...prev, token]);
+        } else if (action === 'move') {
+          setBattleTokens(prev => prev.map(t =>
+            t.id === token.id
+              ? { ...t, gridCol: token.gridCol, gridRow: token.gridRow, x: token.gridCol * battleGrid.cellSize, y: token.gridRow * battleGrid.cellSize }
+              : t
+          ));
+        } else if (action === 'remove') {
+          setBattleTokens(prev => prev.filter(t => t.id !== token.id));
+        } else if (action === 'update_hp') {
+          setBattleTokens(prev => prev.map(t =>
+            t.id === token.id ? { ...t, hp: token.hp } : t
+          ));
+        } else if (action === 'clear') {
+          setBattleTokens([]);
+        }
+      })
       .on("broadcast", { event: "scene_change" }, async ({ payload }) => {
         console.log("📺 TV riceve scene_change:", payload);
         setCurrentLocation({
@@ -2155,6 +2190,24 @@ export default function TVScreen({ joinCode: propJoinCode }) {
                 />
               )}
 
+              {/* BATTLE GRID OVERLAY */}
+              {mapUrl && battleGrid.gridVisible && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    pointerEvents: "none",
+                    zIndex: 5,
+                    backgroundImage: `
+                      linear-gradient(rgba(201,168,76,${battleGrid.gridOpacity}) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(201,168,76,${battleGrid.gridOpacity}) 1px, transparent 1px)
+                    `,
+                    backgroundSize: `${battleGrid.cellSize}px ${battleGrid.cellSize}px`,
+                    transition: "opacity 0.3s",
+                  }}
+                />
+              )}
+
               {/* BACKGROUND PROCEDURALE (quando NON c'è mappa) */}
               {!mapUrl && (
                 <div style={{
@@ -2183,6 +2236,95 @@ export default function TVScreen({ joinCode: propJoinCode }) {
 
               {/* Particelle atmosferiche (da Opus) */}
               <Particles />
+
+              {/* BATTLE TOKENS (dalla BattleGrid) */}
+              {battleTokens.map(token => (
+                <motion.div
+                  key={token.id}
+                  style={{
+                    position: "absolute",
+                    left: token.x,
+                    top: token.y,
+                    width: battleGrid.cellSize,
+                    height: battleGrid.cellSize,
+                    borderRadius: "50%",
+                    border: `3px solid ${token.color}`,
+                    background: token.imgUrl
+                      ? `url(${token.imgUrl})`
+                      : token.type === 'hero'
+                        ? "linear-gradient(135deg, rgba(201,168,76,0.5), rgba(201,168,76,0.3))"
+                        : "linear-gradient(135deg, rgba(220,20,60,0.5), rgba(220,20,60,0.3))",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.7)",
+                    zIndex: 25,
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1, left: token.x, top: token.y }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{
+                    scale: { type: "spring", stiffness: 200, damping: 20 },
+                    opacity: { duration: 0.3 },
+                    left: { type: "spring", stiffness: 100, damping: 20 },
+                    top: { type: "spring", stiffness: 100, damping: 20 }
+                  }}
+                >
+                  {/* Token Label */}
+                  <div style={{
+                    position: "absolute",
+                    top: -20,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    fontSize: battleGrid.cellSize * 0.25,
+                    fontFamily: "var(--font-heading)",
+                    color: "#C9A84C",
+                    whiteSpace: "nowrap",
+                    textShadow: "0 2px 6px #000",
+                    pointerEvents: "none",
+                    fontWeight: 700
+                  }}>
+                    {token.name}
+                  </div>
+
+                  {/* HP Bar */}
+                  <div style={{
+                    position: "absolute",
+                    bottom: 3,
+                    left: 4,
+                    right: 4,
+                    height: 5,
+                    background: "rgba(0,0,0,0.7)",
+                    borderRadius: 3,
+                    overflow: "hidden"
+                  }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${(token.hp / token.maxHp) * 100}%`,
+                      background: token.hp > token.maxHp * 0.5
+                        ? "linear-gradient(90deg, #22C55E, #16A34A)"
+                        : token.hp > token.maxHp * 0.25
+                          ? "linear-gradient(90deg, #EAB308, #CA8A04)"
+                          : "linear-gradient(90deg, #EF4444, #DC2626)",
+                      transition: "width 0.3s",
+                      boxShadow: "0 0 8px currentColor"
+                    }} />
+                  </div>
+
+                  {/* Token Icon (if no image) */}
+                  {!token.imgUrl && (
+                    <div style={{
+                      fontSize: battleGrid.cellSize * 0.5,
+                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))"
+                    }}>
+                      {token.type === 'hero' ? '⚔️' : token.type === 'npc' ? '👤' : '☠️'}
+                    </div>
+                  )}
+                </motion.div>
+              ))}
 
               {/* Initiative Carousel in alto - RIMOSSO: ora usiamo quello nuovo più in basso */}
 
