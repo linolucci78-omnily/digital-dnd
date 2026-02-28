@@ -3568,56 +3568,73 @@ export default function DMPanel({ campaign, onBack }) {
 
           {/* ── TAB MAPPA ── */}
           {tab === "map" && (
-            <motion.div key="map" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <motion.div
+              key="map"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+                overflow: "hidden"
+              }}
+            >
 
-              {/* Upload Mappa */}
-              <div style={{ background: "rgba(212,175,55,0.05)", border: "1px solid rgba(212,175,55,0.15)", borderRadius: 12, padding: 20 }}>
-                <div style={{ fontFamily: "var(--font-heading)", fontSize: "0.8rem", color: "var(--gold)", letterSpacing: "0.15em", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-                  <DnDIcon icon="map" size={16} /> CARICA MAPPA
+              {!mapUrl && (
+                <div style={{ background: "rgba(212,175,55,0.05)", border: "1px solid rgba(212,175,55,0.15)", borderRadius: 12, padding: 20 }}>
+                  <div style={{ fontFamily: "var(--font-heading)", fontSize: "0.8rem", color: "var(--gold)", letterSpacing: "0.15em", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                    <DnDIcon icon="map" size={16} /> CARICA MAPPA
+                  </div>
+                  <div style={{ fontSize: "0.85rem", color: "var(--parchment-dark)", marginBottom: 16, lineHeight: 1.6 }}>
+                    Carica una mappa di battaglia (PNG/JPG, consigliato 2800x2800px con griglia 70px).<br />
+                    La mappa apparirà sulla TV e potrai muovere i token dei personaggi.
+                  </div>
+
+                  <label htmlFor="map-upload">
+                    <motion.div
+                      className="btn btn-gold"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 10,
+                        cursor: uploadingMap ? "wait" : "pointer",
+                        opacity: uploadingMap ? 0.5 : 1,
+                      }}
+                      whileHover={!uploadingMap ? { scale: 1.02 } : {}}
+                      whileTap={!uploadingMap ? { scale: 0.98 } : {}}
+                    >
+                      <DnDIcon icon={uploadingMap ? "hourglass" : "map"} size={18} />
+                      {uploadingMap ? "Caricamento..." : "Scegli Mappa"}
+                    </motion.div>
+                  </label>
+                  <input
+                    id="map-upload"
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg"
+                    onChange={handleMapUpload}
+                    disabled={uploadingMap}
+                    style={{ display: "none" }}
+                  />
                 </div>
-                <div style={{ fontSize: "0.85rem", color: "var(--parchment-dark)", marginBottom: 16, lineHeight: 1.6 }}>
-                  Carica una mappa di battaglia (PNG/JPG, consigliato 2800x2800px con griglia 70px).<br />
-                  La mappa apparirà sulla TV e potrai muovere i token dei personaggi.
-                </div>
-
-                <label htmlFor="map-upload">
-                  <motion.div
-                    className="btn btn-gold"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 10,
-                      cursor: uploadingMap ? "wait" : "pointer",
-                      opacity: uploadingMap ? 0.5 : 1,
-                    }}
-                    whileHover={!uploadingMap ? { scale: 1.02 } : {}}
-                    whileTap={!uploadingMap ? { scale: 0.98 } : {}}
-                  >
-                    <DnDIcon icon={uploadingMap ? "hourglass" : "map"} size={18} />
-                    {uploadingMap ? "Caricamento..." : "Scegli Mappa"}
-                  </motion.div>
-                </label>
-                <input
-                  id="map-upload"
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg"
-                  onChange={handleMapUpload}
-                  disabled={uploadingMap}
-                  style={{ display: "none" }}
-                />
-              </div>
-
-              {/* Battle Grid */}
-              {mapUrl && (
-                <BattleGrid
-                  mapUrl={mapUrl}
-                  tvChannel={channelRef.current}
-                  session={session}
-                />
               )}
 
+              {/* Battle Grid - OCCUPA TUTTO LO SPAZIO */}
+              {mapUrl && (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  <BattleGrid
+                    mapUrl={mapUrl}
+                    tvChannel={channelRef.current}
+                    session={session}
+                  />
+                </div>
+              )}
+            </motion.div>
+          )}
 
-              {/* Combat Log */}
+          {/* ── COMBAT LOG (solo quando NON c'è mappa) ── */}
+          {tab === "map" && !mapUrl && (
+            <motion.div key="combatlog" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {combatLog.length > 0 && (
                 <div style={{ marginTop: 24 }}>
                   <div style={{
