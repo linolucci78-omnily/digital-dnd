@@ -1,0 +1,475 @@
+/* ═══════════════════════════════════════════════════════
+   digitalDnD — Global Styles
+   Design: Dark Fantasy con temi oro e pergamena
+   ═══════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@400;700&family=Lato:ital,wght@0,300;0,400;0,700;1,400&display=swap');
+
+/* ── RESET ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── CSS VARIABLES ── */
+:root {
+  --gold: #d4af37;
+  --gold-light: #f0d060;
+  --gold-dark: #9a7d1a;
+  --crimson: #8b1a1a;
+  --crimson-light: #c04040;
+  --parchment: #f5e6c8;
+  --parchment-dark: #d4b896;
+  --ink: #1a1008;
+  --stone: #2a2a2a;
+  --stone-mid: #3a3530;
+  --stone-light: #4a4540;
+
+  --font-title: 'Cinzel Decorative', 'Cinzel', serif;
+  --font-heading: 'Cinzel', serif;
+  --font-body: 'Lato', sans-serif;
+
+  --shadow-gold: 0 0 20px rgba(212, 175, 55, 0.4);
+  --shadow-dark: 0 4px 20px rgba(0, 0, 0, 0.8);
+  --shadow-inner: inset 0 2px 8px rgba(0,0,0,0.5);
+}
+
+/* ── BASE ── */
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body {
+  background-color: #0d0b08;
+  color: var(--parchment);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--stone); }
+::-webkit-scrollbar-thumb { background: var(--gold-dark); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+/* ── TYPOGRAPHY ── */
+h1, h2, h3 { font-family: var(--font-heading); letter-spacing: 0.05em; }
+
+/* ── ANIMATED BACKGROUND (gradient fallback) ── */
+.bg-fantasy {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 80%, rgba(139, 26, 26, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(64, 80, 140, 0.15) 0%, transparent 50%),
+    linear-gradient(180deg, #0a0806 0%, #0d0b08 50%, #0a0806 100%);
+  z-index: -1;
+}
+
+/* ── IMAGE BACKGROUNDS ── */
+.bg-image {
+  position: fixed;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -2;
+  animation: bgFadeIn 1.2s ease both;
+}
+.bg-lobby   { background-image: url('/bg/custom_lobby.png'); }
+.bg-combat  { background-image: url('/bg/custom_combat.png'); }
+.bg-explore { background-image: url('/bg/custom_exploration.png'); }
+.bg-victory { background-image: url('/bg/custom_victory.png'); }
+.bg-defeat  { background-image: url('/bg/custom_defeat.png'); }
+
+/* Overlay scuro per leggibilità */
+.bg-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 2, 1, 0.60);
+  z-index: -1;
+}
+.bg-overlay-light {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 2, 1, 0.42);
+  z-index: -1;
+}
+.bg-overlay-heavy {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 2, 1, 0.72);
+  z-index: -1;
+}
+
+@keyframes bgFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Glass card più opaca con sfondi immagine */
+.glass-card-dark {
+  background: rgba(8, 5, 2, 0.88);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.8), inset 0 1px 0 rgba(212,175,55,0.1);
+}
+
+/* ── GLASS CARD ── */
+.glass-card {
+  background: rgba(26, 20, 12, 0.85);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-dark), inset 0 1px 0 rgba(212,175,55,0.1);
+}
+
+/* ── CHARACTER SHEET STAT BOX (Stile D&D Cartaceo) ── */
+.stat-box-dnd {
+  background: linear-gradient(135deg, rgba(10,8,6,0.95) 0%, rgba(26,20,12,0.95) 100%);
+  border: 2px solid var(--gold-dark);
+  border-radius: 8px;
+  padding: 12px 10px;
+  text-align: center;
+  position: relative;
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,0.5),
+    0 3px 10px rgba(0,0,0,0.6);
+}
+.stat-box-dnd::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(212,175,55,0.15);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.stat-box-dnd .stat-label {
+  font-family: var(--font-heading);
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  color: var(--gold);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.stat-box-dnd .stat-value {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--parchment);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+}
+
+/* ── ORNAMENTAL DIVIDER ── */
+.ornament {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--gold-dark);
+  font-family: var(--font-heading);
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.ornament::before, .ornament::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-dark), transparent);
+}
+
+/* ── BUTTON BASE ── */
+.btn {
+  font-family: var(--font-heading);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, var(--gold-dark) 0%, var(--gold) 50%, var(--gold-dark) 100%);
+  color: var(--ink);
+  font-weight: 700;
+  padding: 12px 28px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+.btn-gold:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(212,175,55,0.4);
+}
+.btn-gold:active { transform: translateY(0); filter: brightness(0.95); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid rgba(212,175,55,0.4);
+  padding: 10px 24px;
+  border-radius: 8px;
+}
+.btn-ghost:hover {
+  background: rgba(212,175,55,0.1);
+  border-color: var(--gold);
+}
+
+.btn-crimson {
+  background: linear-gradient(135deg, #6b1010 0%, var(--crimson-light) 50%, #6b1010 100%);
+  color: var(--parchment);
+  padding: 12px 28px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.btn-crimson:hover { filter: brightness(1.2); transform: translateY(-1px); }
+
+/* ── FORM ELEMENTS ── */
+input, textarea, select {
+  background: rgba(10, 8, 6, 0.8);
+  border: 1px solid rgba(212,175,55,0.3);
+  border-radius: 6px;
+  color: var(--parchment);
+  font-family: var(--font-body);
+  padding: 10px 14px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(212,175,55,0.15);
+}
+input::placeholder, textarea::placeholder {
+  color: rgba(212,175,55,0.3);
+  font-style: italic;
+}
+select option { background: #1a140c; }
+
+label {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 6px;
+}
+
+/* ── ABILITY SCORE (Stile Scheda Cartacea D&D 5e) ── */
+.ability-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(10,8,6,0.9) 0%, rgba(26,20,12,0.9) 100%);
+  border: 2px solid var(--gold-dark);
+  border-radius: 12px;
+  padding: 12px 8px;
+  min-width: 70px;
+  position: relative;
+  box-shadow:
+    inset 0 2px 8px rgba(0,0,0,0.6),
+    0 4px 12px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(212,175,55,0.15);
+}
+.ability-box::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(212,175,55,0.2);
+  border-radius: 10px;
+  pointer-events: none;
+}
+.ability-box .ability-name {
+  font-family: var(--font-heading);
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+  text-transform: uppercase;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+.ability-box .ability-score {
+  font-family: var(--font-heading);
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: var(--parchment);
+  line-height: 1;
+  margin: 6px 0;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+}
+.ability-box .ability-mod {
+  font-size: 1rem;
+  font-family: var(--font-heading);
+  color: var(--gold-light);
+  font-weight: 700;
+  background: rgba(0,0,0,0.4);
+  padding: 2px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(212,175,55,0.3);
+  min-width: 40px;
+  text-align: center;
+}
+
+/* ── SELECT CARD ── */
+.select-card {
+  cursor: pointer;
+  border: 2px solid rgba(212,175,55,0.2);
+  border-radius: 12px;
+  padding: 16px;
+  background: rgba(10,8,6,0.6);
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+.select-card:hover {
+  border-color: rgba(212,175,55,0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+}
+.select-card.selected {
+  border-color: var(--gold);
+  background: rgba(212,175,55,0.08);
+  box-shadow: 0 0 20px rgba(212,175,55,0.2);
+}
+
+/* ── TOKEN MINIATURE ── */
+.token {
+  position: relative;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.8), 0 0 0 2px rgba(0,0,0,0.5);
+}
+.token:hover {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.8), 0 0 20px var(--token-glow, rgba(212,175,55,0.4));
+}
+
+/* ── SPELL SLOTS ── */
+.spell-slot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--gold-dark);
+  background: rgba(0,0,0,0.5);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-block;
+}
+.spell-slot.available {
+  background: radial-gradient(circle, var(--gold-light), var(--gold-dark));
+  border-color: var(--gold);
+  box-shadow: 0 0 6px rgba(212,175,55,0.5);
+}
+
+/* ── HP BAR ── */
+.hp-bar-container {
+  position: relative;
+  height: 8px;
+  background: rgba(0,0,0,0.5);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.hp-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.hp-bar-fill.high { background: linear-gradient(90deg, #2a8a2a, #40c040); }
+.hp-bar-fill.mid  { background: linear-gradient(90deg, #8a7a10, #c0b020); }
+.hp-bar-fill.low  { background: linear-gradient(90deg, #8a2020, #c04040); }
+
+/* ── STEP DOTS ── */
+.step-dots { display: flex; gap: 8px; align-items: center; justify-content: center; }
+.step-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--stone-light); transition: all 0.3s;
+}
+.step-dot.active { width: 24px; border-radius: 4px; background: var(--gold); }
+.step-dot.done { background: var(--gold-dark); }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 8px rgba(212,175,55,0.3); }
+  50%       { box-shadow: 0 0 20px rgba(212,175,55,0.6); }
+}
+@keyframes diceRoll {
+  0%   { transform: rotate(0deg) scale(1); }
+  25%  { transform: rotate(-15deg) scale(1.2); }
+  50%  { transform: rotate(15deg) scale(1.1); }
+  75%  { transform: rotate(-8deg) scale(1.05); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.animate-fade      { animation: fadeIn 0.4s ease both; }
+.animate-slide     { animation: slideUp 0.5s ease both; }
+.animate-pulse-gold { animation: pulse-gold 2s ease-in-out infinite; }
+
+/* ── QR CODE ── */
+.qr-container {
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  display: inline-block;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+/* ── INITIATIVE ── */
+.initiative-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.4);
+  border-left: 3px solid var(--gold-dark);
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 4px;
+  transition: all 0.3s;
+}
+.initiative-card.current {
+  border-left-color: var(--gold);
+  background: rgba(212,175,55,0.1);
+  box-shadow: 0 0 12px rgba(212,175,55,0.2);
+}
+
+/* ── DEATH SAVES ── */
+.death-save {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid; cursor: pointer; transition: all 0.2s;
+  display: inline-block;
+}
+.death-save.success { border-color: #40c040; }
+.death-save.success.filled { background: #40c040; box-shadow: 0 0 6px #40c040; }
+.death-save.fail { border-color: #c04040; }
+.death-save.fail.filled { background: #c04040; box-shadow: 0 0 6px #c04040; }

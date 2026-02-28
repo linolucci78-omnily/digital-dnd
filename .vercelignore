@@ -1,0 +1,13 @@
+# PDF manuali troppo grandi per Vercel (limite 100MB)
+*.pdf
+MANUALI/
+nuovo-manuale.pdf
+la-miniera perduta.pdf
+
+# Build artifacts già generati
+dist/MANUALI/
+
+# File di sviluppo
+.env.local
+.env.development
+*.log

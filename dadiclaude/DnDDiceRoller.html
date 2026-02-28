@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D&D Dice Roller</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{overflow:hidden;width:100%;height:100%;background:#050508;font-family:'Cinzel',serif;user-select:none}
+  #dice-box{position:relative;width:100vw;height:100vh;background:#050508;cursor:pointer}
+  #dice-box canvas,#dice-canvas{width:100%!important;height:100%!important;position:absolute!important;top:0!important;left:0!important}
+  .vig{position:fixed;inset:0;z-index:3;pointer-events:none;background:radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,.75) 100%)}
+  .top{position:fixed;top:0;left:0;right:0;z-index:10;text-align:center;padding:clamp(16px,3.5vh,44px) 20px;pointer-events:none}
+  .title{font-size:clamp(32px,6vw,72px);font-weight:900;letter-spacing:.2em;text-transform:uppercase;transition:all .4s}
+  .hint{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:clamp(12px,1.6vw,18px);color:rgba(255,255,255,.2);margin-top:4px;letter-spacing:.06em;font-weight:300}
+  .rw{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:8;text-align:center;pointer-events:none;opacity:0;transition:opacity .3s}
+  .rw.show{opacity:1;animation:popIn .5s cubic-bezier(.16,1,.3,1) forwards}
+  .rn{font-size:clamp(80px,20vw,240px);font-weight:900;line-height:1;letter-spacing:-.02em;color:#eee;text-shadow:0 0 40px rgba(255,255,255,.2),0 4px 20px rgba(0,0,0,.5)}
+  .rn.crit{color:#ffd700;text-shadow:0 0 80px #ffd70088,0 0 160px #ffd70033;animation:gP 1s ease-in-out infinite}
+  .rn.fumble{color:#ef4444;text-shadow:0 0 80px #ef444488;animation:fS .35s ease-in-out infinite}
+  .rb{margin-top:8px;font-size:clamp(15px,2.2vw,26px);font-family:'Cormorant Garamond',serif;color:rgba(255,255,255,.4)}
+  .cl{margin-top:14px;font-size:clamp(16px,3vw,38px);letter-spacing:.3em}
+  .cl.c{color:#ffd700;text-shadow:0 0 40px #ffd70066;animation:gP 1.5s ease-in-out infinite}
+  .cl.f{color:#ef4444;text-shadow:0 0 40px #ef444466}
+  .qr{position:fixed;bottom:clamp(80px,14vh,125px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:16px;z-index:10}
+  .qb{width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.6);color:#fff;font-size:20px;font-family:'Cinzel',serif;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);transition:all .2s;line-height:1;padding:0}
+  .qb:hover{filter:brightness(1.3)}
+  .qd{text-align:center;min-width:44px}
+  .qn{font-size:clamp(22px,3vw,34px);color:rgba(255,255,255,.85);font-weight:900;line-height:1}
+  .ql{font-size:11px;color:rgba(255,255,255,.18);font-family:'Cormorant Garamond',serif;font-style:italic;letter-spacing:.15em;margin-top:2px}
+  .sb{position:fixed;bottom:0;left:0;right:0;z-index:10;display:flex;justify-content:center;gap:clamp(6px,1.5vw,14px);padding:clamp(14px,3vh,30px) clamp(10px,3vw,36px);background:linear-gradient(to top,rgba(0,0,0,.85) 0%,rgba(0,0,0,.3) 60%,transparent 100%)}
+  .db{display:flex;flex-direction:column;align-items:center;padding:clamp(10px,1.5vh,16px) clamp(14px,2.5vw,28px);border-radius:12px;border:2px solid rgba(255,255,255,.06);background:rgba(0,0,0,.6);cursor:pointer;transition:all .35s cubic-bezier(.16,1,.3,1);backdrop-filter:blur(12px);min-width:clamp(50px,10vw,80px);outline:none}
+  .db:hover{filter:brightness(1.2)}
+  .db.on{transform:scale(1.12) translateY(-3px)}
+  .dl{font-size:clamp(13px,2vw,18px);font-weight:700;letter-spacing:.12em;font-family:'Cinzel',serif;color:#444;transition:color .3s}
+  .ld{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:rgba(5,5,8,.95)}
+  .ld.off{display:none}
+  .sp{width:48px;height:48px;border:3px solid rgba(255,255,255,.08);border-top-color:#7c5cbf;border-radius:50%;animation:spin 1s linear infinite}
+  .lt{font-size:18px;color:rgba(255,255,255,.5);font-weight:700;letter-spacing:.1em}
+  .ls{font-family:'Cormorant Garamond',serif;font-size:14px;color:rgba(255,255,255,.2);font-style:italic}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes popIn{0%{opacity:0;transform:scale(.3) translateY(40px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+  @keyframes gP{0%,100%{transform:scale(1)}50%{transform:scale(1.05);filter:brightness(1.25)}}
+  @keyframes fS{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+</style>
+</head>
+<body>
+  <div id="dice-box"></div>
+  <div class="vig"></div>
+  <div class="top"><div class="title" id="title">D20</div><div class="hint" id="hint">Loading dice engine...</div></div>
+  <div class="rw" id="rw"><div class="rn" id="rn"></div><div class="rb" id="rb"></div><div class="cl" id="cl"></div></div>
+  <div class="qr"><button class="qb" id="qm">−</button><div class="qd"><div class="qn" id="qn">1</div><div class="ql" id="qlb">die</div></div><button class="qb" id="qp">+</button></div>
+  <div class="sb" id="bar"></div>
+  <div class="ld" id="ld"><div class="sp"></div><div class="lt">Loading 3D Dice Engine</div><div class="ls">Professional models &amp; physics</div></div>
+<script type="module">
+const VER="1.1.3",CDN=`https://unpkg.com/@3d-dice/dice-box@${VER}/dist`;
+const T=[{id:"d4",label:"D4",color:"#d4384e",body:"#6b1520"},{id:"d6",label:"D6",color:"#22aa55",body:"#0d3b20"},{id:"d8",label:"D8",color:"#3399ee",body:"#0d2844"},{id:"d10",label:"D10",color:"#aa55ee",body:"#3a0d44"},{id:"d12",label:"D12",color:"#eeaa33",body:"#44300d"},{id:"d20",label:"D20",color:"#7777ff",body:"#12121e"}];
+let sel="d20",qty=1,rolling=false,box=null;
+const bar=document.getElementById("bar");
+T.forEach(t=>{const b=document.createElement("button");b.className="db";b.dataset.id=t.id;b.innerHTML=`<span class="dl">${t.label}</span>`;b.onclick=e=>{e.stopPropagation();pick(t.id)};bar.appendChild(b)});
+function pick(id){sel=id;const t=T.find(d=>d.id===id);document.querySelectorAll(".db").forEach(b=>{const on=b.dataset.id===id,tp=T.find(d=>d.id===b.dataset.id);b.className=on?"db on":"db";b.querySelector(".dl").style.color=on?tp.color:"#444";b.style.borderColor=on?tp.color:"rgba(255,255,255,.06)";b.style.background=on?tp.body+"66":"rgba(0,0,0,.6)";b.style.boxShadow=on?`0 0 20px ${tp.color}33`:"none"});const ti=document.getElementById("title");ti.textContent=qty>1?qty+t.label:t.label;ti.style.color=t.color;ti.style.textShadow=`0 0 60px ${t.color}44, 0 2px 10px rgba(0,0,0,1)`;if(box)box.updateConfig({themeColor:t.color});hideR()}
+document.getElementById("qm").onclick=e=>{e.stopPropagation();qty=Math.max(1,qty-1);uQ()};
+document.getElementById("qp").onclick=e=>{e.stopPropagation();qty=Math.min(10,qty+1);uQ()};
+function uQ(){document.getElementById("qn").textContent=qty;document.getElementById("qlb").textContent=qty===1?"die":"dice";const t=T.find(d=>d.id===sel);document.getElementById("title").textContent=qty>1?qty+t.label:t.label}
+function showR(total,vals,sides){const n=document.getElementById("rn"),bd=document.getElementById("rb"),cl=document.getElementById("cl");n.textContent=total;n.className="rn";cl.innerHTML="";cl.className="cl";if(vals.length===1&&sides===20){if(total===20){n.classList.add("crit");cl.classList.add("c");cl.innerHTML="✦ NATURAL 20 ✦"}else if(total===1){n.classList.add("fumble");cl.classList.add("f");cl.innerHTML="✧ NATURAL 1 ✧"}}bd.innerHTML=vals.length>1?vals.map((v,i)=>`<span style="color:rgba(255,255,255,.5)">${v}</span>${i<vals.length-1?'<span style="color:rgba(255,255,255,.15);margin:0 6px">+</span>':""}`).join(""):"";document.getElementById("rw").className="rw show"}
+function hideR(){document.getElementById("rw").className="rw"}
+function doRoll(){if(rolling||!box)return;rolling=true;hideR();document.getElementById("hint").textContent="Rolling...";box.roll(`${qty}${sel}`)}
+document.getElementById("dice-box").addEventListener("click",doRoll);
+document.addEventListener("keydown",e=>{if(e.code==="Space"||e.code==="Enter"){e.preventDefault();doRoll()}});
+async function init(){try{const{default:DiceBox}=await import(`${CDN}/dice-box.es.min.js`);box=new DiceBox({assetPath:"assets/",origin:`${CDN}/`,container:"#dice-box",id:"dice-canvas",gravity:2,mass:1,friction:.8,restitution:0,angularDamping:.4,linearDamping:.4,spinForce:5,throwForce:5,startingHeight:8,settleTimeout:5000,delay:10,lightIntensity:1.3,enableShadows:true,shadowTransparency:.8,theme:"default",themeColor:"#7777ff",scale:9,offscreen:true,onRollComplete:r=>{const v=r.map(x=>x.value),t=v.reduce((a,b)=>a+b,0);showR(t,v,r[0]?.sides||20);rolling=false;document.getElementById("hint").textContent="Tap anywhere to roll"}});await box.init();document.getElementById("ld").classList.add("off");document.getElementById("hint").textContent="Tap anywhere to roll";pick("d20")}catch(e){console.error(e);document.querySelector(".lt").textContent="Failed to load";document.querySelector(".ls").textContent=e.message;document.querySelector(".sp").style.display="none"}}
+init();
+</script>
+</body>
+</html>
