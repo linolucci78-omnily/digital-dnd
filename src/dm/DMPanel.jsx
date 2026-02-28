@@ -3616,27 +3616,6 @@ export default function DMPanel({ campaign, onBack }) {
                 />
               )}
 
-              {/* Info */}
-              <div style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(212,175,55,0.1)", borderRadius: 8, padding: 16 }}>
-                <div style={{ fontSize: "0.75rem", color: "rgba(212,175,55,0.6)", lineHeight: 1.6 }}>
-                  <DnDIcon icon="search" size={12} /> <strong>Suggerimenti:</strong><br />
-                  • Crea mappe con Canva AI, Midjourney, o Dungeon Scrawl<br />
-                  • Usa dimensione 2800x2800px con griglia 70px per risultati ottimali<br />
-                  • La mappa apparirà a schermo intero sulla TV<br />
-                  • I token dei personaggi si sovrappongono automaticamente
-                </div>
-              </div>
-
-              {/* Fog of War */}
-              {mapUrl && (
-                <div style={{ marginTop: 20 }}>
-                  <FogOfWarEditor
-                    mapUrl={mapUrl}
-                    session={session}
-                    tvChannel={channelRef.current}
-                  />
-                </div>
-              )}
 
               {/* Combat Log */}
               {combatLog.length > 0 && (

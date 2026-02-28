@@ -248,42 +248,30 @@ export default function BattleGrid({
   };
 
   return (
-    <div style={{ display: "flex", height: "calc(100vh - 200px)", gap: 16 }}>
+    <div style={{ display: "flex", gap: 12 }}>
       {/* Main Grid Area */}
       <div style={{
         flex: 1,
         display: "flex",
         flexDirection: "column",
-        gap: 16
+        gap: 12
       }}>
         {/* Controls */}
         <div style={{
           background: "rgba(212,175,55,0.05)",
           border: "1px solid rgba(212,175,55,0.15)",
-          borderRadius: 12,
-          padding: 16
+          borderRadius: 8,
+          padding: 12,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 12
         }}>
-          <div style={{
-            fontFamily: "var(--font-heading)",
-            fontSize: "0.8rem",
-            color: "var(--gold)",
-            letterSpacing: "0.15em",
-            marginBottom: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 8
-          }}>
-            <DnDIcon icon="grid" size={16} /> CONTROLLI BATTAGLIA
-          </div>
-
-          <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
             {/* Cell Size */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{
-                fontSize: "0.7rem",
-                color: "rgba(224,216,200,0.4)",
-                letterSpacing: "0.05em"
-              }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <label style={{ fontSize: "0.65rem", color: "rgba(224,216,200,0.4)" }}>
                 Celle
               </label>
               <input
@@ -292,20 +280,16 @@ export default function BattleGrid({
                 max="80"
                 value={cellSize}
                 onChange={(e) => handleCellSizeChange(parseInt(e.target.value))}
-                style={{ width: 80, accentColor: "#DC143C" }}
+                style={{ width: 70, accentColor: "#DC143C" }}
               />
-              <span style={{ fontSize: "0.7rem", color: "#C9A84C", minWidth: 28 }}>
-                {cellSize}px
+              <span style={{ fontSize: "0.65rem", color: "#C9A84C", minWidth: 24 }}>
+                {cellSize}
               </span>
             </div>
 
             {/* Grid Opacity */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{
-                fontSize: "0.7rem",
-                color: "rgba(224,216,200,0.4)",
-                letterSpacing: "0.05em"
-              }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <label style={{ fontSize: "0.65rem", color: "rgba(224,216,200,0.4)" }}>
                 Opacità
               </label>
               <input
@@ -314,22 +298,24 @@ export default function BattleGrid({
                 max="50"
                 value={gridOpacity * 100}
                 onChange={(e) => handleOpacityChange(parseInt(e.target.value) / 100)}
-                style={{ width: 80, accentColor: "#DC143C" }}
+                style={{ width: 70, accentColor: "#DC143C" }}
               />
-              <span style={{ fontSize: "0.7rem", color: "#C9A84C", minWidth: 28 }}>
-                {Math.round(gridOpacity * 100)}%
+              <span style={{ fontSize: "0.65rem", color: "#C9A84C", minWidth: 24 }}>
+                {Math.round(gridOpacity * 100)}
               </span>
             </div>
+          </div>
 
+          <div style={{ display: "flex", gap: 8 }}>
             {/* Toggle Grid */}
             <motion.button
               onClick={handleToggleGrid}
               style={{
-                padding: "6px 14px",
+                padding: "4px 10px",
                 fontFamily: "var(--font-heading)",
-                fontSize: "0.6rem",
+                fontSize: "0.55rem",
                 fontWeight: 700,
-                letterSpacing: "0.1em",
+                letterSpacing: "0.05em",
                 textTransform: "uppercase",
                 border: gridVisible ? "1px solid rgba(220,20,60,0.3)" : "1px solid rgba(201,168,76,0.3)",
                 background: gridVisible
@@ -337,7 +323,7 @@ export default function BattleGrid({
                   : "linear-gradient(135deg, #4a1515, #2a0808)",
                 color: "#C9A84C",
                 cursor: "pointer",
-                borderRadius: 6,
+                borderRadius: 4,
               }}
               whileHover={{
                 background: "linear-gradient(135deg, #2a1010, #1a0808)",
@@ -353,24 +339,24 @@ export default function BattleGrid({
               <motion.button
                 onClick={handleClearTokens}
                 style={{
-                  padding: "6px 14px",
+                  padding: "4px 10px",
                   fontFamily: "var(--font-heading)",
-                  fontSize: "0.6rem",
+                  fontSize: "0.55rem",
                   fontWeight: 700,
-                  letterSpacing: "0.1em",
+                  letterSpacing: "0.05em",
                   textTransform: "uppercase",
                   border: "1px solid rgba(192,64,64,0.3)",
                   background: "rgba(192,64,64,0.2)",
                   color: "#C9A84C",
                   cursor: "pointer",
-                  borderRadius: 6,
+                  borderRadius: 4,
                 }}
                 whileHover={{
                   background: "rgba(192,64,64,0.3)",
                 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <DnDIcon icon="close" size={12} /> Cancella Tutti
+                Cancella
               </motion.button>
             )}
           </div>
@@ -378,14 +364,15 @@ export default function BattleGrid({
 
         {/* Map Container */}
         <div style={{
-          flex: 1,
           position: "relative",
+          maxHeight: 600,
           overflow: "auto",
           background: "#050508",
-          borderRadius: 12,
+          borderRadius: 8,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center"
+          justifyContent: "center",
+          border: "1px solid rgba(201,168,76,0.1)"
         }}>
           <div
             ref={mapContainerRef}
@@ -541,23 +528,18 @@ export default function BattleGrid({
         {/* Status Bar */}
         {hoveredCell && (
           <div style={{
-            padding: "8px 16px",
+            padding: "6px 12px",
             background: "rgba(10,10,15,0.95)",
             border: "1px solid rgba(201,168,76,0.06)",
-            borderRadius: 8,
+            borderRadius: 6,
             display: "flex",
             alignItems: "center",
-            gap: 20,
-            fontSize: "0.65rem",
+            gap: 16,
+            fontSize: "0.6rem",
             color: "rgba(224,216,200,0.25)"
           }}>
             <span>
-              Px: <span style={{ color: "#C9A84C" }}>{hoveredCoords.x}, {hoveredCoords.y}</span>
-            </span>
-            <span>
-              Cella: <span style={{ color: "#C9A84C" }}>
-                C{hoveredCell.col}, R{hoveredCell.row}
-              </span>
+              <span style={{ color: "#C9A84C" }}>C{hoveredCell.col}, R{hoveredCell.row}</span>
             </span>
             <span style={{ color: "rgba(224,216,200,0.4)" }}>
               {getCellOccupant(hoveredCell.col, hoveredCell.row)
@@ -571,36 +553,37 @@ export default function BattleGrid({
 
       {/* Sidebar - Token Tray */}
       <div style={{
-        width: 220,
+        width: 180,
         background: "rgba(8,8,12,0.95)",
         border: "1px solid rgba(201,168,76,0.06)",
-        borderRadius: 12,
+        borderRadius: 8,
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden"
+        overflow: "hidden",
+        maxHeight: 660
       }}>
         <div style={{
-          padding: 16,
+          padding: 12,
           borderBottom: "1px solid rgba(201,168,76,0.04)"
         }}>
           <div style={{
             fontFamily: "var(--font-heading)",
-            fontSize: "0.7rem",
+            fontSize: "0.65rem",
             color: "#C9A84C",
-            letterSpacing: "0.15em",
-            marginBottom: 4
+            letterSpacing: "0.1em",
+            marginBottom: 2
           }}>
             TOKEN
           </div>
           <div style={{
-            fontSize: "0.6rem",
+            fontSize: "0.55rem",
             color: "rgba(224,216,200,0.3)"
           }}>
-            Trascina sulla mappa
+            Drag & Drop
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
           {/* Heroes */}
           <div style={{ marginBottom: 20 }}>
             <div style={{
