@@ -11,10 +11,23 @@ import useImage from "use-image";
 import Modal from "../components/Modal";
 import { GiScrollQuill, GiWoodPile, GiCrossedSwords, GiEvilEyes, GiBorderedShield, GiTabletopPlayers } from "react-icons/gi";
 
-export default function PageCanvas({ scene, campaign, onUpdate, mode = "edit", tvChannel = null }) {
-  // mode: "edit" (DM) | "view" (players/TV)
+export default function PageCanvas({
+  scene,
+  campaign,
+  onUpdate,
+  mode = "edit",  // "edit" (DM) | "view" (players/TV) | "exploration" | "combat"
+  tvChannel = null,
+  session = null,
+  combatData = null  // { turnOrder, currentTurn, round } - active only in combat mode
+}) {
+  // mode:
+  //   - "edit": DM editing mode (default)
+  //   - "view": TV/Player view mode
+  //   - "exploration": DM exploration mode (same as edit but different semantics)
+  //   - "combat": Combat mode with turn-based restrictions
   // tvChannel: Supabase realtime channel per broadcasting
   // campaign: Campaign object (needed for TV URL)
+  // combatData: Combat state (turn order, current turn, round number)
 
   // Canvas & Stage
   const [canvasSize] = useState({ width: 5000, height: 3500 });
