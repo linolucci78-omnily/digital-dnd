@@ -3853,7 +3853,7 @@ const PageCanvas = forwardRef(function PageCanvas({
             )}
 
             {/* Fog of War */}
-            {pageSettings.mapImage && (
+            {pageSettings.mapImage ? (
               <div style={{
                 padding: "12px",
                 background: "rgba(0,0,0,0.3)",
@@ -3919,6 +3919,32 @@ const PageCanvas = forwardRef(function PageCanvas({
                     )}
                   </>
                 )}
+              </div>
+            ) : (
+              <div style={{
+                padding: "12px",
+                background: "rgba(0,0,0,0.3)",
+                borderRadius: 8,
+                border: "1px solid rgba(255,215,0,0.2)",
+                marginTop: 12,
+              }}>
+                <div style={{
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                  color: "rgba(255,215,0,0.6)",
+                  marginBottom: 8,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}>
+                  🌫️ Nebbia di Guerra
+                </div>
+                <div style={{
+                  fontSize: "0.7rem",
+                  color: "rgba(255,255,255,0.5)",
+                  lineHeight: "1.4",
+                }}>
+                  Imposta prima una mappa principale per usare la nebbia di guerra.
+                </div>
               </div>
             )}
 
