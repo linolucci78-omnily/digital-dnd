@@ -10,7 +10,7 @@ import PageCanvas from "./PageCanvas.jsx";
 import Modal from "../components/Modal";
 import CreateSceneForm from "./CreateSceneForm.jsx";
 
-export default function SceneManager({ campaign, session, tvChannel, openEditor, onEditorOpen, onEditorClose, sessionState, onSceneActivated }) {
+export default function SceneManager({ campaign, session, tvChannel, openEditor, onEditorOpen, onEditorClose, sessionState, onSceneActivated, onEditScene }) {
   const [scenes, setScenes] = useState([]);
   const [activeSceneId, setActiveSceneId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,6 +20,9 @@ export default function SceneManager({ campaign, session, tvChannel, openEditor,
   // Editor Mode States
   const [editorMode, setEditorMode] = useState(false);
   const [selectedSceneId, setSelectedSceneId] = useState(null);
+
+  // View Mode - per vedere la scena al centro senza editare
+  const [viewSceneId, setViewSceneId] = useState(null);
 
   // Modal state
   const [modal, setModal] = useState({
@@ -45,18 +48,25 @@ export default function SceneManager({ campaign, session, tvChannel, openEditor,
 
   // Carica scene della campagna
   useEffect(() => {
+    console.log("📡 useEffect loadScenes - campaign?.id:", campaign?.id);
     if (campaign?.id) {
       loadScenes();
+    } else {
+      console.log("❌ No campaign.id, cannot load scenes");
+      setLoading(false);
     }
   }, [campaign?.id]);
 
   const loadScenes = async () => {
+    console.log("🔄 loadScenes() called - campaign.id:", campaign.id);
     try {
       const { data, error } = await supabase
         .from("scenes")
         .select("*")
         .eq("campaign_id", campaign.id)
         .order("created_at", { ascending: false });
+
+      console.log("📦 Scenes loaded:", data?.length || 0, "scenes", error ? `ERROR: ${error.message}` : "");
 
       if (error) throw error;
 
@@ -66,9 +76,20 @@ export default function SceneManager({ campaign, session, tvChannel, openEditor,
       const active = data?.find(s => s.is_active);
       if (active) {
         setActiveSceneId(active.id);
+        console.log("✅ Active scene:", active.name);
+      }
+
+      // Seleziona automaticamente una scena per visualizzarla
+      if (data && data.length > 0) {
+        // Priorità: scena attiva, altrimenti la prima
+        const sceneToView = active || data[0];
+        setViewSceneId(sceneToView.id);
+        console.log("🎯 Auto-selected scene:", sceneToView.name, sceneToView.id);
+      } else {
+        console.log("⚠️ No scenes found");
       }
     } catch (err) {
-      console.error("Errore caricamento scene:", err);
+      console.error("❌ Errore caricamento scene:", err);
     } finally {
       setLoading(false);
     }
@@ -814,8 +835,12 @@ export default function SceneManager({ campaign, session, tvChannel, openEditor,
                 whileHover={{ background: "rgba(212,175,55,0.2)" }}
                 onClick={() => {
                   const scene = scenes.find(s => s.id === contextMenu.sceneId);
-                  setSelectedSceneId(scene.id);
-                  setEditorMode(true);
+                  if (onEditScene) {
+                    onEditScene(scene);
+                  } else {
+                    setSelectedSceneId(scene.id);
+                    setEditorMode(true);
+                  }
                   setContextMenu(null);
                 }}
                 style={{
@@ -887,48 +912,62 @@ Apri Editor
 
   // Durante preparing, non mostrare la lista normale (solo editor)
   if (sessionState === "preparing") {
+    console.log("SceneManager: sessionState is 'preparing', returning null");
     return null;
   }
 
-  // Layout Lista Normale
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 15, height: "100%" }}>
-      {/* Header */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "0 5px",
-      }}>
-        <h3 style={{
-          margin: 0,
-          fontFamily: "var(--font-heading)",
-          fontSize: "1.1rem",
-          color: "var(--gold)",
-        }}>
-           Scene Manager
-        </h3>
-        <button
-          onClick={() => {
-            setEditorMode(true);
-            setSelectedSceneId(null);
-            setShowCreateModal(true);
-          }}
-          className="btn btn-primary"
-          style={{ fontSize: "0.85rem", padding: "8px 16px" }}
-        >
-          + Nuova Scena
-        </button>
-      </div>
+  // Layout Lista Normale - 2 COLONNE
+  const viewScene = scenes.find(s => s.id === viewSceneId);
+  console.log("SceneManager rendering - viewSceneId:", viewSceneId, "viewScene:", viewScene?.name, "scenes:", scenes.length);
 
-      {/* Lista Scene */}
+  return (
+    <div style={{ display: "flex", height: "100%", gap: 0 }}>
+      {/* COLONNA SINISTRA - Lista Scene */}
       <div style={{
-        flex: 1,
-        overflowY: "auto",
+        width: 320,
+        minWidth: 320,
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 15,
+        borderRight: "1px solid rgba(212,175,55,0.3)",
+        paddingRight: 15,
       }}>
+        {/* Header */}
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "0 5px",
+        }}>
+          <h3 style={{
+            margin: 0,
+            fontFamily: "var(--font-heading)",
+            fontSize: "1.1rem",
+            color: "var(--gold)",
+          }}>
+             Scene Manager
+          </h3>
+          <button
+            onClick={() => {
+              setEditorMode(true);
+              setSelectedSceneId(null);
+              setShowCreateModal(true);
+            }}
+            className="btn btn-primary"
+            style={{ fontSize: "0.85rem", padding: "8px 16px" }}
+          >
+            + Nuova Scena
+          </button>
+        </div>
+
+        {/* Lista Scene */}
+        <div style={{
+          flex: 1,
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}>
         {scenes.length === 0 && (
           <div style={{
             padding: 30,
@@ -946,25 +985,23 @@ Apri Editor
             key={scene.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setContextMenu({
-                x: e.clientX,
-                y: e.clientY,
-                sceneId: scene.id,
-              });
-            }}
+            onClick={() => setViewSceneId(scene.id)}
             style={{
-              background: scene.is_active
+              background: viewSceneId === scene.id
                 ? "linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))"
+                : scene.is_active
+                ? "linear-gradient(135deg, rgba(76,175,80,0.15), rgba(76,175,80,0.05))"
                 : "rgba(255,255,255,0.03)",
-              border: scene.is_active
+              border: viewSceneId === scene.id
                 ? "2px solid rgba(212,175,55,0.6)"
+                : scene.is_active
+                ? "2px solid rgba(76,175,80,0.6)"
                 : "1px solid rgba(255,255,255,0.1)",
               borderRadius: 12,
               padding: 12,
               position: "relative",
               transition: "all 0.3s ease",
+              cursor: "pointer",
             }}
           >
             {/* Badge "ACTIVE" */}
@@ -1045,7 +1082,8 @@ Apri Editor
               flexWrap: "wrap",
             }}>
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setSelectedSceneId(scene.id);
                   setEditorMode(true);
                 }}
@@ -1079,6 +1117,7 @@ Editor
                   }}
                   onClick={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     e.target.parentElement.querySelector('input[type="file"]').click();
                   }}
                 >
@@ -1091,7 +1130,10 @@ Editor
               </label>
 
               <button
-                onClick={() => deleteScene(scene.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteScene(scene.id);
+                }}
                 className="btn btn-ghost"
                 style={{
                   fontSize: "0.75rem",
@@ -1104,6 +1146,129 @@ Editor
             </div>
           </motion.div>
         ))}
+        </div>
+      </div>
+
+      {/* COLONNA DESTRA - Visualizza Scena */}
+      <div style={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+        background: "rgba(0,0,0,0.3)",
+      }}>
+        {viewScene ? (
+          <div style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 15,
+          }}>
+            {/* Header Scena */}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingBottom: 15,
+              borderBottom: "1px solid rgba(212,175,55,0.3)",
+            }}>
+              <div>
+                <h2 style={{
+                  margin: 0,
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "1.5rem",
+                  color: "var(--gold)",
+                }}>
+                  {viewScene.name}
+                </h2>
+                {viewScene.description && (
+                  <p style={{
+                    margin: "5px 0 0",
+                    fontSize: "0.85rem",
+                    color: "rgba(255,255,255,0.6)",
+                  }}>
+                    {viewScene.description}
+                  </p>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                {!viewScene.is_active && (
+                  <button
+                    onClick={() => activateScene(viewScene.id)}
+                    className="btn btn-primary"
+                    style={{
+                      fontSize: "0.85rem",
+                      padding: "10px 18px",
+                      background: "linear-gradient(135deg, #4CAF50, #45a049)",
+                    }}
+                  >
+                    Attiva su TV
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setSelectedSceneId(viewScene.id);
+                    setEditorMode(true);
+                  }}
+                  className="btn btn-primary"
+                  style={{ fontSize: "0.85rem", padding: "10px 18px" }}
+                >
+                  Modifica
+                </button>
+              </div>
+            </div>
+
+            {/* Preview Mappa */}
+            <div style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#000",
+              borderRadius: 12,
+              overflow: "hidden",
+              border: "2px solid rgba(212,175,55,0.3)",
+            }}>
+              {viewScene.map_url ? (
+                <img
+                  src={viewScene.map_url}
+                  alt={viewScene.name}
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                    objectFit: "contain",
+                  }}
+                />
+              ) : (
+                <div style={{
+                  textAlign: "center",
+                  color: "rgba(255,255,255,0.4)",
+                }}>
+                  <div style={{ fontSize: "4rem", marginBottom: 15 }}>📍</div>
+                  <div style={{ fontSize: "1rem" }}>Nessuna mappa caricata</div>
+                  <div style={{ fontSize: "0.85rem", marginTop: 5 }}>
+                    Clicca "Modifica" per aggiungere una mappa
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            textAlign: "center",
+            color: "rgba(255,255,255,0.4)",
+          }}>
+            <div style={{ fontSize: "5rem", marginBottom: 20, opacity: 0.3 }}>🎬</div>
+            <div style={{ fontSize: "1.2rem", marginBottom: 10 }}>
+              Seleziona una scena per visualizzarla
+            </div>
+            <div style={{ fontSize: "0.9rem" }}>
+              Clicca su una scena dalla lista per vederla al centro
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Context Menu */}
@@ -1137,8 +1302,13 @@ Editor
               <motion.button
                 whileHover={{ background: "rgba(212,175,55,0.2)" }}
                 onClick={() => {
-                  setSelectedSceneId(contextMenu.sceneId);
-                  setEditorMode(true);
+                  const scene = scenes.find(s => s.id === contextMenu.sceneId);
+                  if (onEditScene) {
+                    onEditScene(scene);
+                  } else {
+                    setSelectedSceneId(contextMenu.sceneId);
+                    setEditorMode(true);
+                  }
                   setContextMenu(null);
                 }}
                 style={{

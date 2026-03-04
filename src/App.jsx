@@ -10,6 +10,8 @@ import CharacterCreation from "./player/CharacterCreation.jsx";
 import CharacterSheet from "./player/CharacterSheet.jsx";
 import AdventurePlayer from "./player/AdventurePlayer.jsx";
 import DMPanel from "./dm/DMPanel.jsx";
+import SceneEditor from "./dm/SceneEditor.jsx";
+import UnifiedDMLayout from "./dm/UnifiedDMLayout.jsx";
 import TVScreen from "./tv/TVScreen.jsx";
 import MusicPlayer from "./shared/components/MusicPlayer.jsx";
 import DnDIcon from "./shared/components/DnDIcon.jsx";
@@ -939,23 +941,49 @@ function DMPanelLoader() {
   const campaignId = params.get("cid");
   const dmCode = params.get("dmc");
   const [campaign, setCampaign] = useState(null);
+  const [session, setSession] = useState(null);
+  const [characters, setCharacters] = useState([]);
+  const [activeScene, setActiveScene] = useState(null);
+  const [tvChannel, setTvChannel] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!campaignId) { setError("Parametri mancanti."); return; }
+
+    // Carica campagna
     supabase.from("campaigns").select("*").eq("id", campaignId).single()
       .then(({ data, error: err }) => {
         if (err || !data) { setError("Campagna non trovata."); return; }
 
-        // DEBUG: controllo password DM Panel
-        console.log("🔍 DEBUG DM PANEL LOADER:");
-        console.log("dm_code dal DB:", data.dm_code, "Type:", typeof data.dm_code);
-        console.log("dmCode dall'URL:", dmCode, "Type:", typeof dmCode);
-        console.log("Match:", data.dm_code === dmCode);
-        console.log("Match (string):", String(data.dm_code) === String(dmCode));
-
         if (data.dm_code !== dmCode) { setError("Codice DM non corretto."); return; }
         setCampaign(data);
+
+        // Carica sessione attiva
+        supabase.from("sessions").select("*").eq("campaign_id", campaignId).eq("is_active", true).single()
+          .then(({ data: sessionData }) => {
+            if (sessionData) setSession(sessionData);
+          });
+
+        // Carica personaggi
+        supabase.from("characters").select("*").eq("campaign_id", campaignId)
+          .then(({ data: chars }) => {
+            if (chars) setCharacters(chars);
+          });
+
+        // Carica scena attiva
+        supabase.from("scenes").select("*").eq("campaign_id", campaignId).eq("is_active", true).single()
+          .then(({ data: scene }) => {
+            if (scene) setActiveScene(scene);
+          });
+
+        // Setup Realtime channel per TV
+        const channel = supabase.channel(`campaign-${campaignId}`);
+        setTvChannel(channel);
+        channel.subscribe();
+
+        return () => {
+          channel.unsubscribe();
+        };
       });
   }, [campaignId, dmCode]);
 
@@ -972,7 +1000,16 @@ function DMPanelLoader() {
       <div style={{ color:"var(--gold)", fontFamily:"var(--font-heading)" }}>Caricamento...</div>
     </div>
   );
-  return <DMPanel campaign={campaign} dmCode={dmCode} onBack={() => goTo("/")} />;
+
+  return (
+    <UnifiedDMLayout
+      campaign={campaign}
+      session={session}
+      characters={characters}
+      activeScene={activeScene}
+      tvChannel={tvChannel}
+    />
+  );
 }
 
 // ── LOADER CHARACTER SHEET (carica personaggio da URL) ──

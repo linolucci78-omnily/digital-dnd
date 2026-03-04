@@ -2,12 +2,14 @@
 //  CreateSceneForm — Form con accordion sections (stile screenshot)
 // ═══════════════════════════════════════════════════════════
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "../lib/supabase";
 
-export default function CreateSceneForm({ onSubmit, onCancel }) {
+export default function CreateSceneForm({ onSubmit, onCancel, campaignId }) {
   const [expandedSections, setExpandedSections] = useState({
     basic: true,
+    map: false,
     grid: false,
     page: false,
     fog: false,
@@ -38,10 +40,52 @@ export default function CreateSceneForm({ onSubmit, onCancel }) {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const handleSubmit = (e) => {
+  // Map upload
+  const [mapFile, setMapFile] = useState(null);
+  const [mapPreview, setMapPreview] = useState(null);
+  const [mapUploading, setMapUploading] = useState(false);
+  const [mapUrl, setMapUrl] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const handleMapSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMapFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setMapPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const uploadMap = async () => {
+    if (!mapFile) return null;
+    setMapUploading(true);
+    try {
+      const ext = mapFile.name.split(".").pop();
+      const fileName = `scene_thumb_${Date.now()}.${ext}`;
+      const filePath = `thumbnails/${fileName}`;
+      const { error } = await supabase.storage
+        .from("maps").upload(filePath, mapFile, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("maps").getPublicUrl(filePath);
+      setMapUrl(data.publicUrl);
+      return data.publicUrl;
+    } catch (err) {
+      console.error("Errore upload mappa:", err);
+      return null;
+    } finally {
+      setMapUploading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
-    onSubmit(formData);
+    // Upload mappa se presente
+    let finalMapUrl = mapUrl;
+    if (mapFile && !mapUrl) {
+      finalMapUrl = await uploadMap();
+    }
+    onSubmit({ ...formData, map_url: finalMapUrl });
   };
 
   // Stile per accordion header
@@ -156,6 +200,102 @@ export default function CreateSceneForm({ onSubmit, onCancel }) {
                   onFocus={(e) => e.target.style.borderColor = "rgba(212,175,55,0.6)"}
                   onBlur={(e) => e.target.style.borderColor = "rgba(212,175,55,0.3)"}
                 />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* MAPPA / THUMBNAIL SECTION */}
+      <div style={{ marginBottom: 12 }}>
+        <div
+          onClick={() => toggleSection("map")}
+          style={accordionHeaderStyle(expandedSections.map)}
+        >
+          <span style={accordionTitleStyle}>Mappa / Thumbnail</span>
+          <motion.span
+            animate={{ rotate: expandedSections.map ? 90 : 0 }}
+            style={{ color: "var(--gold)", fontSize: "1.2rem" }}
+          >
+            ›
+          </motion.span>
+        </div>
+        <AnimatePresence>
+          {expandedSections.map && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              style={{ overflow: "hidden" }}
+            >
+              <div style={{ padding: "16px 20px" }}>
+                {/* Preview */}
+                {mapPreview ? (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{
+                      width: "100%", height: 160, borderRadius: 8,
+                      overflow: "hidden", border: "2px solid rgba(212,175,55,0.3)",
+                      position: "relative",
+                    }}>
+                      <img src={mapPreview} alt="preview"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <button
+                        onClick={() => { setMapFile(null); setMapPreview(null); setMapUrl(null); }}
+                        style={{
+                          position: "absolute", top: 6, right: 6,
+                          background: "rgba(0,0,0,0.7)", border: "1px solid rgba(255,255,255,0.2)",
+                          borderRadius: 4, color: "#ff6b6b",
+                          cursor: "pointer", padding: "2px 8px", fontSize: "0.7rem",
+                        }}
+                      >
+                        Rimuovi
+                      </button>
+                    </div>
+                    <div style={{
+                      fontSize: "0.65rem", color: "rgba(255,255,255,0.4)",
+                      marginTop: 6, textAlign: "center",
+                    }}>
+                      {mapFile?.name} ({(mapFile?.size / 1024).toFixed(0)} KB)
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      width: "100%", height: 120, borderRadius: 8,
+                      border: "2px dashed rgba(212,175,55,0.3)",
+                      display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center", gap: 8,
+                      cursor: "pointer", marginBottom: 14,
+                      background: "rgba(212,175,55,0.03)",
+                      transition: "border-color 0.2s",
+                    }}
+                  >
+                    <span style={{ fontSize: "1.5rem", color: "rgba(212,175,55,0.4)" }}>+</span>
+                    <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)" }}>
+                      Clicca per caricare un'immagine
+                    </span>
+                    <span style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.2)" }}>
+                      JPG, PNG, WebP
+                    </span>
+                  </div>
+                )}
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleMapSelect}
+                  style={{ display: "none" }}
+                />
+
+                <p style={{
+                  fontSize: "0.6rem", color: "rgba(255,255,255,0.25)",
+                  fontStyle: "italic", margin: 0, textAlign: "center",
+                }}>
+                  Questa immagine apparira come thumbnail nella lista scene e come mappa nella minimap.
+                  Puoi aggiungere la mappa completa nell'editor.
+                </p>
               </div>
             </motion.div>
           )}

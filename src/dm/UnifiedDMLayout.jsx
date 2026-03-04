@@ -9,6 +9,7 @@ import DMDashboard from "./DMDashboard.jsx";
 import SceneManager from "./SceneManager.jsx";
 import PageCanvas from "./PageCanvas.jsx";
 import NPCManager from "./NPCManager.jsx";
+import SceneEditor from "./SceneEditor.jsx";
 import DnDIcon from "../shared/components/DnDIcon.jsx";
 
 export default function UnifiedDMLayout({
@@ -30,10 +31,17 @@ export default function UnifiedDMLayout({
   const [sceneEditMode, setSceneEditMode] = useState(false);
   const [editingScene, setEditingScene] = useState(null);
 
+  // Debug: monitora cambiamenti di currentSection
+  useEffect(() => {
+    console.log("🔄 currentSection changed to:", currentSection);
+  }, [currentSection]);
+
   // Handler per selezione sezione dal dashboard
   const handleSectionSelect = (sectionId) => {
-    console.log("📍 Navigating to section:", sectionId);
+    console.log("📍 UnifiedDMLayout - Navigating to section:", sectionId);
+    console.log("📍 Current section before:", currentSection);
     setCurrentSection(sectionId);
+    console.log("📍 Current section after setState:", sectionId);
   };
 
   // Handler per tornare al dashboard
@@ -103,6 +111,20 @@ export default function UnifiedDMLayout({
   // ═══════════════════════════════════════════════════════════
 
   const renderSection = () => {
+    // SCENE EDITOR HUB — Il cuore del DM (sia da "dm-main" che da "scenes")
+    if (currentSection === "dm-main" || currentSection === "scenes" || (sceneEditMode && editingScene)) {
+      return (
+        <SceneEditor
+          campaign={campaign}
+          session={session}
+          tvChannel={tvChannel}
+          characters={characters}
+          onClose={handleBackToDashboard}
+          initialScene={editingScene}
+        />
+      );
+    }
+
     // DASHBOARD - Schermata iniziale con tutte le carte
     if (currentSection === "dashboard") {
       return (
