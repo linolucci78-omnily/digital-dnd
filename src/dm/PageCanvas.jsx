@@ -3859,7 +3859,18 @@ const PageCanvas = forwardRef(function PageCanvas({
                 background: "rgba(0,0,0,0.3)",
                 borderRadius: 8,
                 border: "1px solid rgba(255,255,255,0.1)",
+                marginTop: 12,
               }}>
+                <div style={{
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                  color: "var(--gold)",
+                  marginBottom: 12,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}>
+                  🌫️ Nebbia di Guerra
+                </div>
                 <label style={{
                   display: "flex",
                   alignItems: "center",
@@ -3875,7 +3886,7 @@ const PageCanvas = forwardRef(function PageCanvas({
                     onChange={toggleFogOfWar}
                     style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--gold)" }}
                   />
-                  Nebbia di Guerra
+                  Abilita Nebbia
                 </label>
 
                 {pageSettings.fogOfWar.enabled && (
