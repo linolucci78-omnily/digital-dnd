@@ -13,6 +13,7 @@ import FinalDiceBox from "../shared/components/FinalDiceBox.jsx";
 import DnDIcon from "../shared/components/DnDIcon.jsx";
 import TurnBanner from "./TurnBanner.jsx";
 import CombatLog from "./CombatLog.jsx";
+import PageCanvas from "../dm/PageCanvas.jsx";
 import { STATUS_EFFECTS } from "../shared/constants/statusEffects.js";
 import { SAVING_THROWS } from "../shared/constants/savingThrows.js";
 import { SKILL_CHECKS } from "../shared/constants/skillChecks.js";
@@ -1019,6 +1020,8 @@ export default function TVScreen({ joinCode: propJoinCode }) {
   const [diceRoll, setDiceRoll] = useState(null);
   const [mapUrl, setMapUrl] = useState(null);
   const [tokenPositions, setTokenPositions] = useState({});
+  const [activeScene, setActiveScene] = useState(null);
+  const [tvChannelRef, setTvChannelRef] = useState(null);
 
   // Battle Grid State
   const [battleGrid, setBattleGrid] = useState({
@@ -1181,7 +1184,28 @@ export default function TVScreen({ joinCode: propJoinCode }) {
         setMapUrl(sess.map_url);
       }
 
-      await loadCurrentLocation(camp.id);
+      // Carica scena attiva dalla tabella scenes (sistema nuovo)
+      const { data: activeSceneData } = await supabase
+        .from("scenes")
+        .select("*")
+        .eq("campaign_id", camp.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (activeSceneData) {
+        console.log("📺 TV carica scena attiva:", activeSceneData.name);
+        setActiveScene(activeSceneData);
+        setCurrentLocation({
+          name: activeSceneData.name,
+          description: activeSceneData.description,
+          map_url: activeSceneData.map_url,
+        });
+        if (activeSceneData.map_url) {
+          setMapUrl(activeSceneData.map_url);
+        }
+      } else {
+        await loadCurrentLocation(camp.id);
+      }
 
       cleanupRef.current = subscribeToSession(sess, camp);
     } catch (e) {
@@ -1194,11 +1218,17 @@ export default function TVScreen({ joinCode: propJoinCode }) {
   const subscribeToSession = (sess, camp) => {
     if (!sess?.id) return;
 
-    const tvChannel = supabase.channel(`session-tv-${sess.id}`, {
+    // Canale principale — DEVE corrispondere a quello del DM: campaign-${campaignId}
+    const tvChannel = supabase.channel(`campaign-${camp.id}`, {
       config: {
         broadcast: { self: true },
       },
-    })
+    });
+
+    // Salva il tvChannel nello state per PageCanvas
+    setTvChannelRef(tvChannel);
+
+    tvChannel
       .on("broadcast", { event: "combat_update" }, ({ payload }) => {
         console.log("📺 TV riceve combat_update", payload);
         // Merge del payload con lo stato esistente invece di sovrascrivere tutto
@@ -1884,16 +1914,34 @@ export default function TVScreen({ joinCode: propJoinCode }) {
       })
       .on("broadcast", { event: "scene_change" }, async ({ payload }) => {
         console.log("📺 TV riceve scene_change:", payload);
-        setCurrentLocation({
-          name: payload.location,
-          description: payload.description,
-          map_url: payload.mapUrl,
-          music_track: payload.musicTrack,
-        });
-        setMapUrl(payload.mapUrl);
 
-        if (camp?.id) {
-          loadCurrentLocation(camp.id);
+        // Se c'e sceneId, carica la scena dal DB per avere dati aggiornati
+        if (payload.sceneId) {
+          const { data: sceneData } = await supabase
+            .from("scenes")
+            .select("*")
+            .eq("id", payload.sceneId)
+            .single();
+
+          if (sceneData) {
+            setActiveScene(sceneData);
+            setCurrentLocation({
+              name: sceneData.name,
+              description: sceneData.description,
+              map_url: sceneData.map_url,
+              music_track: sceneData.music_track,
+            });
+            setMapUrl(sceneData.map_url || null);
+          }
+        } else {
+          // Fallback: usa dati dal payload
+          setCurrentLocation({
+            name: payload.location,
+            description: payload.description,
+            map_url: payload.mapUrl,
+            music_track: payload.musicTrack,
+          });
+          setMapUrl(payload.mapUrl || null);
         }
 
         const { data: updatedChars } = await supabase
@@ -2196,24 +2244,26 @@ export default function TVScreen({ joinCode: propJoinCode }) {
                 </motion.div>
               )}
 
-              {/* IMMAGINE MAPPA (quando caricata) */}
-              {mapUrl && (
-                <img
-                  src={mapUrl}
-                  alt="Mappa di battaglia"
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    imageRendering: "crisp-edges",
-                  }}
-                />
+              {/* PAGE CANVAS - Mostra il canvas completo del DM */}
+              {activeScene && tvChannelRef && (
+                <div style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                }}>
+                  <PageCanvas
+                    scene={activeScene}
+                    campaign={campaign}
+                    mode="view"
+                    tvChannel={tvChannelRef}
+                    session={session}
+                  />
+                </div>
               )}
 
-              {/* BATTLE GRID OVERLAY */}
-              {mapUrl && battleGrid.gridVisible && (
+              {/* BATTLE GRID OVERLAY - Disabled, now handled by PageCanvas */}
+              {/* {mapUrl && battleGrid.gridVisible && (
                 <div
                   style={{
                     position: "absolute",
@@ -2228,7 +2278,7 @@ export default function TVScreen({ joinCode: propJoinCode }) {
                     transition: "opacity 0.3s",
                   }}
                 />
-              )}
+              )} */}
 
               {/* BACKGROUND PROCEDURALE (quando NON c'è mappa) */}
               {!mapUrl && (

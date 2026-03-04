@@ -1,377 +1,439 @@
 // ═══════════════════════════════════════════════
-//  DMDashboard — Dashboard principale del Dungeon Master
-//  Mostra tutte le sezioni disponibili come carte cliccabili
-//  Con animazioni e preview delle sezioni
+//  DMDashboard — Plancia di Comando del DM
+//  Card con immagini + icone medievali DnDIcon
 // ═══════════════════════════════════════════════
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import DnDIcon from "../shared/components/DnDIcon.jsx";
+
+const SECTIONS = [
+  {
+    id: "dm-main",
+    title: "Dungeon Master",
+    subtitle: "Scene, Mappa, Combattimento",
+    icon: "crown",
+    image: "/cards/dm-main-card.png",
+    accent: "#d4af37",
+    glow: "rgba(212,175,55,0.35)",
+    span: 2,
+  },
+  {
+    id: "party",
+    title: "Party",
+    subtitle: "Gestisci gli eroi",
+    icon: "shield",
+    image: "/cards/party-card.png",
+    accent: "#4caf50",
+    glow: "rgba(76,175,80,0.3)",
+  },
+  {
+    id: "npcs",
+    title: "NPC",
+    subtitle: "Nemici ed alleati",
+    icon: "dragon",
+    image: "/cards/npc-card.png",
+    accent: "#c04040",
+    glow: "rgba(192,64,64,0.3)",
+  },
+  {
+    id: "inventory",
+    title: "Tesori",
+    subtitle: "Bottino e oggetti magici",
+    icon: "chest",
+    image: "/cards/inventory-card.png",
+    accent: "#e6a817",
+    glow: "rgba(230,168,23,0.3)",
+  },
+  {
+    id: "diary",
+    title: "Diario",
+    subtitle: "Note e progressione",
+    icon: "book",
+    image: "/cards/diary-card.png",
+    accent: "#9c6baf",
+    glow: "rgba(156,107,175,0.3)",
+  },
+  {
+    id: "music",
+    title: "Music",
+    subtitle: "Atmosfera e sound",
+    icon: "performance",
+    image: "/cards/mcard.png",
+    accent: "#26a69a",
+    glow: "rgba(38,166,154,0.3)",
+  },
+  {
+    id: "dice",
+    title: "Dadi",
+    subtitle: "Tiri e prove",
+    icon: "diceD20",
+    image: "/cards/dice-card.png",
+    accent: "#d4af37",
+    glow: "rgba(212,175,55,0.3)",
+  },
+];
 
 export default function DMDashboard({ onSelectSection, sessionData }) {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [selectedCard, setSelectedCard] = useState(null);
+  const [particles, setParticles] = useState([]);
 
-  // Sezioni disponibili
-  const sections = [
-    {
-      id: "dm-main",
-      title: "Tavolo del Dungeon Master",
-      description: "Pannello principale: mappa, scene, combattimento e controlli DM",
-      icon: "🎯",
-      color: "#8B4513",
-      badge: "Main Hub",
-      image: "/cards/dm-main-card.png",
-    },
-    {
-      id: "scenes",
-      title: "Scene & Mappe",
-      description: "Crea e gestisci le scene della campagna con mappe e grid",
-      icon: "🗺️",
-      color: "#1565C0",
-      badge: "Maps",
-      image: "/cards/scenes-card.png",
-    },
-    {
-      id: "party",
-      title: "Party",
-      description: "Visualizza e gestisci i personaggi dei giocatori",
-      icon: "⚔️",
-      color: "#2E7D32",
-      badge: sessionData?.players?.length || 0,
-      image: "/cards/party-card.png",
-    },
-    {
-      id: "npcs",
-      title: "NPC & Mostri",
-      description: "Gestisci PNG, nemici e alleati della campagna",
-      icon: "🐉",
-      color: "#C62828",
-      badge: "5 NPC",
-      image: "/cards/npc-card.png",
-    },
-    {
-      id: "inventory",
-      title: "Inventario & Tesori",
-      description: "Oggetti magici, equipaggiamento, bottino",
-      icon: "💎",
-      color: "#F57C00",
-      badge: "12 Oggetti",
-      image: "/cards/inventory-card.png",
-    },
-    {
-      id: "diary",
-      title: "Diario di Sessione",
-      description: "Note, eventi importanti, progressione storia",
-      icon: "📖",
-      color: "#6A1B9A",
-      badge: "3 Voci",
-      image: "/cards/diary-card.png",
-    },
-    {
-      id: "narrative",
-      title: "Narrativa & Storia",
-      description: "Testi narrativi, descrizioni ambientali e dialoghi NPC",
-      icon: "📜",
-      color: "#5E35B1",
-      badge: "Story",
-      image: "/cards/narrative-card.png",
-    },
-    {
-      id: "music",
-      title: "Musica & Ambiente",
-      description: "Controlla musica di sottofondo e effetti sonori",
-      icon: "🎵",
-      color: "#00838F",
-      badge: "Playlist",
-      image: "/cards/mcard.png",
-    },
-    {
-      id: "dice",
-      title: "Dadi & Tiri",
-      description: "Lancia dadi, gestisci tiri salvezza e abilità",
-      icon: "🎲",
-      color: "#D4AF37",
-      badge: "d20",
-      image: "/cards/dice-card.png",
-    },
-  ];
+  // Floating embers
+  useEffect(() => {
+    setParticles(Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100, y: Math.random() * 100,
+      size: Math.random() * 3 + 1,
+      duration: Math.random() * 15 + 10,
+      delay: Math.random() * 8,
+      opacity: Math.random() * 0.12 + 0.04,
+    })));
+  }, []);
 
   const handleCardClick = (section) => {
-    console.log("🎯 Card clicked - FULL SECTION:", section);
-    console.log("🎯 Card clicked - ID:", section.id);
-    console.log("🎯 Card clicked - TITLE:", section.title);
     setSelectedCard(section.id);
-    // Animazione di transizione prima di cambiare sezione
-    setTimeout(() => {
-      console.log("🚀 TIMEOUT - Calling onSelectSection with:", section.id);
-      onSelectSection(section.id);
-    }, 600);
+    setTimeout(() => onSelectSection(section.id), 450);
   };
 
   return (
-    <div
-      className="bg-image bg-dmroom"
-      style={{
-        width: "100%",
-        height: "100vh",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* Overlay scuro per leggibilità */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "linear-gradient(135deg, rgba(15,10,8,0.85), rgba(25,20,15,0.85))",
-          zIndex: 1,
-        }}
-      />
+    <div style={{
+      width: "100%", minHeight: "100vh",
+      background: "#080604", position: "relative", overflow: "hidden",
+    }}>
+      {/* Ambient light */}
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 0,
+        background:
+          "radial-gradient(ellipse at 50% 0%, rgba(212,175,55,0.04) 0%, transparent 50%), " +
+          "radial-gradient(ellipse at 20% 80%, rgba(139,69,19,0.03) 0%, transparent 40%), " +
+          "radial-gradient(ellipse at 80% 60%, rgba(139,0,0,0.02) 0%, transparent 40%)",
+      }} />
 
-      {/* Contenuto */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 2,
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          padding: "40px",
-          gap: "40px",
-        }}
-      >
-        {/* Hero Section */}
-        <div
-          style={{
-            textAlign: "center",
-            animation: "fadeInDown 0.8s ease-out forwards",
-          }}
+      {/* Vignette */}
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 0,
+        boxShadow: "inset 0 0 200px 60px rgba(0,0,0,0.7)",
+        pointerEvents: "none",
+      }} />
+
+      {/* Embers */}
+      {particles.map((p) => (
+        <div key={p.id} style={{
+          position: "fixed", left: `${p.x}%`, top: `${p.y}%`,
+          width: p.size, height: p.size, borderRadius: "50%",
+          background: `rgba(212,175,55,${p.opacity})`,
+          boxShadow: `0 0 ${p.size * 3}px rgba(212,175,55,${p.opacity * 0.5})`,
+          animation: `ember-float ${p.duration}s ease-in-out ${p.delay}s infinite`,
+          zIndex: 0, pointerEvents: "none",
+        }} />
+      ))}
+
+      {/* Content */}
+      <div style={{
+        position: "relative", zIndex: 2,
+        maxWidth: 1300, margin: "0 auto",
+        padding: "clamp(30px, 5vh, 60px) clamp(20px, 3vw, 50px) 60px",
+        display: "flex", flexDirection: "column", minHeight: "100vh",
+      }}>
+        {/* Header */}
+        <motion.header
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7 }}
+          style={{ textAlign: "center", marginBottom: "clamp(30px, 4vh, 50px)" }}
         >
-          <h1
-            style={{
-              fontFamily: "'Cinzel', serif",
-              fontSize: "3rem",
-              color: "#D4AF37",
-              marginBottom: "10px",
-              letterSpacing: "0.1em",
-              textShadow: "0 2px 4px rgba(0,0,0,0.5), 0 0 20px rgba(212,175,55,0.3)",
-            }}
-          >
+          <div style={{
+            display: "flex", alignItems: "center", gap: 16,
+            marginBottom: 16, justifyContent: "center",
+          }}>
+            <OrnamentLine flip />
+            <DnDIcon icon="crown" size={20} color="rgba(212,175,55,0.5)" />
+            <OrnamentLine />
+          </div>
+
+          <h1 style={{
+            fontFamily: "'Cinzel Decorative', 'Cinzel', serif",
+            fontSize: "clamp(1.8rem, 4.5vw, 3.2rem)",
+            fontWeight: 900, color: "#d4af37",
+            letterSpacing: "0.1em", margin: 0,
+            textShadow: "0 0 60px rgba(212,175,55,0.2), 0 2px 4px rgba(0,0,0,0.8)",
+          }}>
             Tavolo del Dungeon Master
           </h1>
-          <p
+
+          <motion.p
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
             style={{
-              fontFamily: "var(--font-body)",
-              fontSize: "1.1rem",
-              color: "var(--parchment)",
-              opacity: 0.8,
+              fontFamily: "'Cinzel', serif", fontSize: "0.85rem",
+              color: "rgba(212,175,55,0.35)", letterSpacing: "0.15em", marginTop: 10,
             }}
           >
-            Sessione: <span style={{ color: "#D4AF37", fontWeight: 600 }}>{sessionData?.name || "Nuova Avventura"}</span>
-          </p>
-        </div>
+            Sessione:{" "}
+            <span style={{ color: "rgba(212,175,55,0.6)" }}>
+              {sessionData?.name || "Nuova Avventura"}
+            </span>
+          </motion.p>
+        </motion.header>
 
-        {/* Griglia Carte */}
-        <div
-          style={{
-            flex: 1,
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))",
-            gap: "40px",
-            alignContent: "start",
-            maxWidth: "1800px",
-            margin: "0 auto",
-            width: "100%",
-          }}
-        >
-          <AnimatePresence>
-            {sections.map((section, index) => (
+        {/* Cards grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: "clamp(12px, 1.5vw, 22px)",
+          flex: 1, alignContent: "start",
+        }}>
+          {SECTIONS.map((section, index) => {
+            const isHovered = hoveredCard === section.id;
+            const isLarge = section.span === 2;
+
+            return (
               <motion.div
                 key={section.id}
-                initial={{ opacity: 0, y: 50, rotateX: -15 }}
-                animate={{ opacity: 1, y: 0, rotateX: 0 }}
-                exit={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{
-                  duration: 0.6,
-                  delay: index * 0.1,
-                  type: "spring",
-                  stiffness: 100,
+                  duration: 0.5, delay: 0.15 + index * 0.07,
+                  ease: [0.25, 0.46, 0.45, 0.94],
                 }}
+                onMouseEnter={() => setHoveredCard(section.id)}
+                onMouseLeave={() => setHoveredCard(null)}
+                onClick={() => handleCardClick(section)}
                 style={{
+                  gridColumn: isLarge ? "span 2" : "span 1",
                   position: "relative",
-                  height: "500px",
+                  aspectRatio: isLarge ? "2 / 1.15" : "1 / 1.15",
+                  cursor: "pointer",
                 }}
               >
-                <div
-                  onMouseEnter={() => {
-                    console.log("🖱️ Mouse enter:", section.id);
-                    setHoveredCard(section.id);
+                {/* Outer glow */}
+                <motion.div
+                  animate={{
+                    boxShadow: isHovered
+                      ? `0 8px 50px ${section.glow}, 0 0 80px ${section.glow}`
+                      : "0 4px 20px rgba(0,0,0,0.4)",
                   }}
-                  onMouseLeave={() => {
-                    console.log("🖱️ Mouse leave");
-                    setHoveredCard(null);
-                  }}
-                  onMouseDown={(e) => {
-                    console.log("🔽 Mouse down!");
-                  }}
-                  onMouseUp={(e) => {
-                    console.log("🔼 Mouse up!");
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log("👆 Click detected on card!");
-                    handleCardClick(section);
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log("👆👆 ONCLICK FIRED!");
-                  }}
+                  transition={{ duration: 0.35 }}
                   style={{
-                    position: "absolute",
-                    inset: 0,
-                    backgroundImage: `url(${section.image})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    border: `3px solid ${hoveredCard === section.id ? "#D4AF37" : "rgba(212,175,55,0.5)"}`,
-                    borderRadius: "16px",
-                    padding: "30px",
-                    cursor: "pointer",
-                    transition: "all 0.3s ease",
-                    transform: hoveredCard === section.id ? "translateY(-8px) scale(1.05)" : "translateY(0) scale(1)",
-                    boxShadow: hoveredCard === section.id
-                      ? "0 20px 40px rgba(212,175,55,0.6), 0 0 60px rgba(212,175,55,0.3)"
-                      : "0 8px 16px rgba(0,0,0,0.5)",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "20px",
-                    textAlign: "center",
-                    overflow: "hidden",
-                    filter: hoveredCard === section.id ? "brightness(1.1)" : "brightness(1)",
+                    position: "absolute", inset: -1,
+                    borderRadius: 14, pointerEvents: "none", zIndex: 0,
+                  }}
+                />
+
+                {/* Card */}
+                <motion.div
+                  animate={{
+                    y: isHovered ? -8 : 0,
+                    scale: isHovered ? 1.03 : 1,
+                  }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  style={{
+                    position: "absolute", inset: 0,
+                    borderRadius: 12, overflow: "hidden",
+                    willChange: "transform",
                   }}
                 >
-                {/* Overlay scuro solo su hover per leggibilità */}
-                {hoveredCard === section.id && (
-                  <div
+                  {/* Background image */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    backgroundImage: `url(${section.image})`,
+                    backgroundSize: "cover", backgroundPosition: "center",
+                    transition: "transform 0.6s ease, filter 0.4s",
+                    transform: isHovered ? "scale(1.08)" : "scale(1)",
+                    filter: isHovered ? "brightness(1.15) saturate(1.1)" : "brightness(0.85) saturate(0.9)",
+                  }} />
+
+                  {/* Bottom gradient */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: isHovered
+                      ? "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 35%, transparent 65%)"
+                      : "linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.15) 40%, transparent 70%)",
+                    transition: "all 0.4s",
+                  }} />
+
+                  {/* Color overlay on hover */}
+                  <motion.div
+                    animate={{ opacity: isHovered ? 0.12 : 0 }}
+                    transition={{ duration: 0.3 }}
                     style={{
-                      position: "absolute",
-                      inset: 0,
-                      background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)",
-                      borderRadius: "16px",
-                      pointerEvents: "none",
-                      transition: "opacity 0.3s ease",
+                      position: "absolute", inset: 0,
+                      background: section.accent, mixBlendMode: "overlay",
                     }}
                   />
-                )}
 
-                {/* Titolo in basso - visibile solo su hover */}
-                {hoveredCard === section.id && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: "20px",
-                      left: "20px",
-                      right: "20px",
-                      zIndex: 10,
-                      pointerEvents: "none",
-                    }}
-                  >
-                    <h3
+                  {/* Corner accents */}
+                  <div style={{
+                    position: "absolute", top: 14, left: 14,
+                    width: 24, height: 24, zIndex: 3,
+                    borderTop: `2px solid ${isHovered ? section.accent : "rgba(212,175,55,0.2)"}`,
+                    borderLeft: `2px solid ${isHovered ? section.accent : "rgba(212,175,55,0.2)"}`,
+                    borderTopLeftRadius: 4, transition: "border-color 0.3s",
+                  }} />
+                  <div style={{
+                    position: "absolute", bottom: 14, right: 14,
+                    width: 24, height: 24, zIndex: 3,
+                    borderBottom: `2px solid ${isHovered ? section.accent : "rgba(212,175,55,0.2)"}`,
+                    borderRight: `2px solid ${isHovered ? section.accent : "rgba(212,175,55,0.2)"}`,
+                    borderBottomRightRadius: 4, transition: "border-color 0.3s",
+                  }} />
+
+                  {/* Content */}
+                  <div style={{
+                    position: "absolute", bottom: 0, left: 0, right: 0,
+                    padding: isLarge ? "0 28px 22px" : "0 20px 18px",
+                    zIndex: 3,
+                  }}>
+                    {/* Icon */}
+                    <motion.div
+                      animate={{ scale: isHovered ? 1.15 : 1, y: isHovered ? -4 : 0 }}
+                      transition={{ duration: 0.3 }}
                       style={{
-                        fontFamily: "'Cinzel', serif",
-                        fontSize: "1.3rem",
-                        color: "#D4AF37",
-                        marginBottom: "5px",
-                        letterSpacing: "0.05em",
-                        textShadow: "0 2px 8px rgba(0,0,0,0.8)",
+                        marginBottom: 10,
+                        filter: isHovered ? `drop-shadow(0 0 12px ${section.glow})` : "none",
+                        transition: "filter 0.3s",
                       }}
                     >
+                      <DnDIcon
+                        icon={section.icon}
+                        size={isLarge ? 36 : 28}
+                        color={isHovered ? section.accent : "rgba(240,230,210,0.7)"}
+                      />
+                    </motion.div>
+
+                    {/* Title */}
+                    <h3 style={{
+                      fontFamily: "'Cinzel Decorative', 'Cinzel', serif",
+                      fontSize: isLarge ? "clamp(1.3rem, 2.5vw, 1.8rem)" : "clamp(0.95rem, 1.5vw, 1.15rem)",
+                      fontWeight: 700, margin: "0 0 4px 0",
+                      letterSpacing: "0.05em",
+                      color: isHovered ? section.accent : "rgba(240,230,210,0.95)",
+                      transition: "color 0.3s",
+                      textShadow: isHovered
+                        ? `0 0 25px ${section.glow}, 0 2px 8px rgba(0,0,0,0.9)`
+                        : "0 2px 6px rgba(0,0,0,0.8)",
+                    }}>
                       {section.title}
                     </h3>
-                    <p
+
+                    {/* Subtitle */}
+                    <motion.p
+                      animate={{ opacity: isHovered ? 1 : 0.5, y: isHovered ? 0 : 3 }}
+                      transition={{ duration: 0.25 }}
                       style={{
-                        fontFamily: "var(--font-body)",
-                        fontSize: "0.85rem",
-                        color: "var(--parchment)",
-                        opacity: 0.9,
-                        lineHeight: 1.4,
-                        textShadow: "0 1px 4px rgba(0,0,0,0.8)",
+                        fontFamily: "'Cinzel', serif",
+                        fontSize: "0.68rem",
+                        color: "rgba(212,175,55,0.5)",
+                        letterSpacing: "0.08em", margin: 0,
                       }}
                     >
-                      {section.description}
-                    </p>
+                      {section.subtitle}
+                    </motion.p>
                   </div>
-                )}
 
-                {/* Effetto hover decorativo */}
-                {hoveredCard === section.id && (
-                  <div
+                  {/* Arrow on hover */}
+                  <motion.div
+                    animate={{ opacity: isHovered ? 1 : 0, x: isHovered ? 0 : -8 }}
+                    transition={{ duration: 0.2 }}
                     style={{
-                      position: "absolute",
-                      inset: 0,
-                      border: "1px solid rgba(212,175,55,0.2)",
-                      borderRadius: "16px",
-                      pointerEvents: "none",
-                      animation: "cardGlow 2s ease-in-out infinite",
+                      position: "absolute", top: 16, right: 18, zIndex: 3,
+                      color: section.accent,
+                      textShadow: `0 0 12px ${section.glow}`,
                     }}
-                  />
-                )}
-                </div>
+                  >
+                    <DnDIcon icon="arrow" size={16} />
+                  </motion.div>
+                </motion.div>
               </motion.div>
-            ))}
-          </AnimatePresence>
+            );
+          })}
         </div>
+
+        {/* Footer */}
+        <motion.footer
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          transition={{ delay: 1.0, duration: 0.6 }}
+          style={{
+            marginTop: "clamp(24px, 3vh, 40px)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 14,
+          }}
+        >
+          <div style={{ width: 40, height: 1, background: "linear-gradient(90deg, transparent, rgba(212,175,55,0.15))" }} />
+          <span style={{
+            fontSize: "0.55rem", color: "rgba(212,175,55,0.15)",
+            letterSpacing: "0.25em", fontFamily: "'Cinzel', serif",
+          }}>
+            DIGITAL D&D 5E
+          </span>
+          <div style={{ width: 40, height: 1, background: "linear-gradient(90deg, rgba(212,175,55,0.15), transparent)" }} />
+        </motion.footer>
       </div>
 
-      {/* Overlay di transizione quando si clicca */}
+      {/* Transition overlay */}
       <AnimatePresence>
-        {selectedCard && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 100,
-              background: "radial-gradient(circle, rgba(212,175,55,0.3), rgba(15,10,8,0.95))",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "6rem",
-            }}
-          >
-            {sections.find((s) => s.id === selectedCard)?.icon}
-          </motion.div>
-        )}
+        {selectedCard && (() => {
+          const s = SECTIONS.find((x) => x.id === selectedCard);
+          return (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              style={{
+                position: "fixed", inset: 0, zIndex: 100,
+                background: "rgba(8,6,4,0.98)",
+                display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center", gap: 16,
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 0.8 }}
+                transition={{ duration: 0.3 }}
+              >
+                <DnDIcon icon={s?.icon} size={60} color={s?.accent} />
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.25 }}
+                style={{
+                  fontFamily: "'Cinzel', serif", fontSize: "1.1rem",
+                  color: s?.accent, letterSpacing: "0.15em",
+                }}
+              >
+                {s?.title}
+              </motion.div>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
-      {/* CSS Animations */}
       <style>{`
-        @keyframes fadeInDown {
-          from {
-            opacity: 0;
-            transform: translateY(-30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes cardGlow {
-          0%, 100% {
-            box-shadow: inset 0 0 20px rgba(212,175,55,0.2);
-          }
-          50% {
-            box-shadow: inset 0 0 40px rgba(212,175,55,0.4);
-          }
+        @keyframes ember-float {
+          0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+          10% { opacity: 1; }
+          50% { transform: translateY(-80px) translateX(20px); }
+          90% { opacity: 1; }
         }
       `}</style>
+    </div>
+  );
+}
+
+function OrnamentLine({ flip = false }) {
+  return (
+    <div style={{
+      width: "clamp(60px, 12vw, 140px)", height: 6,
+      position: "relative", transform: flip ? "scaleX(-1)" : "none",
+    }}>
+      <div style={{
+        position: "absolute", top: 2, width: "100%", height: 1,
+        background: "linear-gradient(90deg, rgba(212,175,55,0.4), transparent)",
+      }} />
+      <div style={{
+        position: "absolute", top: 4, width: "60%", height: 1,
+        background: "linear-gradient(90deg, rgba(212,175,55,0.2), transparent)",
+      }} />
     </div>
   );
 }

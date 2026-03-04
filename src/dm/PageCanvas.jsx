@@ -3,23 +3,25 @@
 //  Features: Drag & Drop, Resize, Rotate, Pan, Zoom, Layers
 // ═══════════════════════════════════════════════════════════
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Stage, Layer, Image as KonvaImage, Rect, Line, Circle, Transformer, Text as KonvaText, Group } from "react-konva";
 import { supabase } from "../lib/supabase";
 import useImage from "use-image";
 import Modal from "../components/Modal";
 import { GiScrollQuill, GiWoodPile, GiCrossedSwords, GiEvilEyes, GiBorderedShield, GiTabletopPlayers } from "react-icons/gi";
+import { FaEraser } from "react-icons/fa";
 
-export default function PageCanvas({
+const PageCanvas = forwardRef(function PageCanvas({
   scene,
   campaign,
   onUpdate,
+  onSave,  // Callback to save canvas state
   mode = "edit",  // "edit" (DM) | "view" (players/TV) | "exploration" | "combat"
   tvChannel = null,
   session = null,
   combatData = null  // { turnOrder, currentTurn, round } - active only in combat mode
-}) {
+}, ref) {
   // mode:
   //   - "edit": DM editing mode (default)
   //   - "view": TV/Player view mode
@@ -35,6 +37,8 @@ export default function PageCanvas({
   const transformerRef = useRef(null);
   const stageContainerRef = useRef(null);
   const saveTimeoutRef = useRef(null);
+  const initialFitDoneRef = useRef({}); // Track per-mode
+  const isTransitioningRef = useRef(false); // Track scene transitions
 
   // Viewport dimensions
   const [viewportSize, setViewportSize] = useState({
@@ -57,8 +61,14 @@ export default function PageCanvas({
   const [alignStart, setAlignStart] = useState(null);
   const [alignEnd, setAlignEnd] = useState(null);
 
+  // Scene transition effect (DISABLED - was causing performance issues)
+  // const [sceneTransitioning, setSceneTransitioning] = useState(false);
+
   // Fog of War Tool
   const [fogRevealStart, setFogRevealStart] = useState(null);
+  const [fogMode, setFogMode] = useState("rect"); // "rect" | "brush" | "polygon" | "hide"
+  const [fogBrushSize, setFogBrushSize] = useState(60);
+  const [fogPolygonPoints, setFogPolygonPoints] = useState([]);
 
   // Ruler Tool
   const [rulerStart, setRulerStart] = useState(null);
@@ -86,7 +96,14 @@ export default function PageCanvas({
 
   // Pan & Zoom
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+
+  // View mode: misura distanza + coordinate cursore
+  const [viewMeasure, setViewMeasure] = useState(null); // { startX, startY, endX, endY }
+  const [cursorGridPos, setCursorGridPos] = useState(null); // { col, row }
+  const lastCursorUpdate = useRef(0); // Throttle cursor position updates
   const [stageScale, setStageScale] = useState(1);
+  const [isLoadingScene, setIsLoadingScene] = useState(false);
+  const [showZoomControls, setShowZoomControls] = useState(true);
 
   // Context Menu
   const [contextMenu, setContextMenu] = useState(null);
@@ -184,17 +201,55 @@ export default function PageCanvas({
       fogOfWar: {
         ...prev.fogOfWar,
         revealedAreas: [],
+        hiddenAreas: [],
       }
     }));
   };
 
-  // Reveal fog area
-  const revealFogArea = (x, y, width, height) => {
+  // Reset fog — tutto nascosto
+  const resetFog = () => {
     setPageSettings(prev => ({
       ...prev,
       fogOfWar: {
         ...prev.fogOfWar,
-        revealedAreas: [...prev.fogOfWar.revealedAreas, { x, y, width, height }],
+        revealedAreas: [],
+        hiddenAreas: [],
+      }
+    }));
+  };
+
+  // Reveal all — tutto visibile
+  const revealAllFog = () => {
+    const w = (pageSettings.pageWidth || 25) * (gridSettings?.size || 40);
+    const h = (pageSettings.pageHeight || 25) * (gridSettings?.size || 40);
+    setPageSettings(prev => ({
+      ...prev,
+      fogOfWar: {
+        ...prev.fogOfWar,
+        revealedAreas: [{ type: "rect", x: 0, y: 0, width: w, height: h }],
+        hiddenAreas: [],
+      }
+    }));
+  };
+
+  // Reveal fog area (rect, circle, or polygon)
+  const revealFogArea = (shape) => {
+    setPageSettings(prev => ({
+      ...prev,
+      fogOfWar: {
+        ...prev.fogOfWar,
+        revealedAreas: [...(prev.fogOfWar.revealedAreas || []), shape],
+      }
+    }));
+  };
+
+  // Hide fog area (re-fog a revealed area)
+  const hideFogArea = (shape) => {
+    setPageSettings(prev => ({
+      ...prev,
+      fogOfWar: {
+        ...prev.fogOfWar,
+        hiddenAreas: [...(prev.fogOfWar.hiddenAreas || []), shape],
       }
     }));
   };
@@ -228,7 +283,7 @@ export default function PageCanvas({
     size: 100,
     color: "#d4af37",
     opacity: 0.45,
-    snapToGrid: false,
+    snapToGrid: true, // Enabled by default for easier object placement
     offsetX: 0,
     offsetY: 0,
     scale: 5, // feet per square
@@ -292,6 +347,13 @@ export default function PageCanvas({
   useEffect(() => {
     if (!scene?.id) return;
 
+    // Hide zoom controls during transition
+    setShowZoomControls(false);
+
+    // Trigger fade-out transition
+    isTransitioningRef.current = true;
+    // setSceneTransitioning(true); // DISABLED
+
     const loadCanvasState = async () => {
       try {
         const { data, error } = await supabase
@@ -305,26 +367,54 @@ export default function PageCanvas({
         if (data?.canvas_state) {
           const state = data.canvas_state;
 
-          // Restore layers
-          if (state.layers) {
-            setLayers(state.layers);
-          }
+          // Batch all state updates together to minimize re-renders
+          React.startTransition(() => {
+            // Restore layers
+            if (state.layers) {
+              setLayers(state.layers);
+            }
 
-          // Restore grid settings
-          if (state.gridSettings) {
-            setGridSettings(state.gridSettings);
-            console.log("✓ Grid settings loaded:", state.gridSettings);
-          }
+            // Restore grid settings
+            if (state.gridSettings) {
+              setGridSettings(state.gridSettings);
+              console.log("✓ Grid settings loaded:", state.gridSettings);
+            }
 
-          // Restore page settings
-          if (state.pageSettings) {
-            setPageSettings(state.pageSettings);
-          }
+            // Restore page settings
+            if (state.pageSettings) {
+              setPageSettings(state.pageSettings);
 
-          console.log("✓ Canvas state loaded from database");
+              // Auto-align grid to map if offsets are at default (0,0) and map exists
+              if (state.pageSettings.mapImage && state.gridSettings &&
+                  state.gridSettings.offsetX === 0 && state.gridSettings.offsetY === 0) {
+                const map = state.pageSettings.mapImage;
+                const alignedOffsetX = (map.x || 0) % state.gridSettings.size;
+                const alignedOffsetY = (map.y || 0) % state.gridSettings.size;
+
+                setGridSettings(prev => ({
+                  ...prev,
+                  offsetX: alignedOffsetX,
+                  offsetY: alignedOffsetY
+                }));
+                console.log("✓ Grid auto-aligned to map:", { alignedOffsetX, alignedOffsetY });
+              }
+            }
+
+            console.log("✓ Canvas state loaded from database");
+          });
         }
+
+        // Fade back in after loading and show zoom controls
+        setTimeout(() => {
+          isTransitioningRef.current = false;
+          setShowZoomControls(true);
+          // setSceneTransitioning(false); // DISABLED
+        }, 150);
       } catch (err) {
         console.error("Error loading canvas state:", err);
+        isTransitioningRef.current = false;
+        setShowZoomControls(true);
+        // setSceneTransitioning(false); // DISABLED
       }
     };
 
@@ -421,26 +511,21 @@ export default function PageCanvas({
     }
   };
 
-  // Debounced auto-save - triggers 2 seconds after last change
-  useEffect(() => {
-    if (mode !== "edit") return;
-
-    // Clear previous timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+  // Expose save function to parent component via ref
+  useImperativeHandle(ref, () => ({
+    save: async () => {
+      await saveCanvasState();
+      console.log("✅ Canvas manually saved by DM");
     }
+  }));
 
-    // Set new timeout
-    saveTimeoutRef.current = setTimeout(() => {
-      saveCanvasState();
-    }, 2000);
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [layers, gridSettings, pageSettings, mode]);
+  // Manual save only - no auto-save
+  // Removed auto-save to give DM full control over when to save changes
+  const handleSaveCanvas = async () => {
+    await saveCanvasState();
+    console.log("✅ Canvas manually saved by DM");
+    if (onSave) onSave(); // Notify parent component
+  };
 
   // Listen for canvas updates from other DMs (in case of multiple DMs) - EDIT mode
   useEffect(() => {
@@ -458,12 +543,28 @@ export default function PageCanvas({
           if (state.gridSettings) setGridSettings(state.gridSettings);
           if (state.pageSettings) setPageSettings(state.pageSettings);
         }
+      })
+      .on("broadcast", { event: "player_token_move" }, ({ payload }) => {
+        console.log("📡 DM received player token move:", payload);
+
+        // Update token position in PC layer
+        setLayers(prev => ({
+          ...prev,
+          pc: {
+            ...prev.pc,
+            objects: prev.pc.objects.map(obj =>
+              obj.id === payload.tokenId || obj.characterId === payload.characterId
+                ? { ...obj, x: payload.gridCol * (gridSettings?.size || 50), y: payload.gridRow * (gridSettings?.size || 50) }
+                : obj
+            )
+          }
+        }));
       });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [tvChannel, scene?.id, mode]);
+  }, [tvChannel, scene?.id, mode, gridSettings]);
 
   // Apply canvas state from scene prop when in VIEW mode (TV/Players)
   useEffect(() => {
@@ -476,6 +577,33 @@ export default function PageCanvas({
 
     console.log("📺 TV: Canvas state applied from scene prop");
   }, [scene?.canvas_state, mode]);
+
+  // Listen for player token movements in VIEW mode (TV)
+  useEffect(() => {
+    if (!tvChannel || mode !== "view") return;
+
+    const subscription = tvChannel
+      .on("broadcast", { event: "player_token_move" }, ({ payload }) => {
+        console.log("📺 TV received player token move:", payload);
+
+        // Update token position in PC layer
+        setLayers(prev => ({
+          ...prev,
+          pc: {
+            ...prev.pc,
+            objects: prev.pc.objects.map(obj =>
+              obj.id === payload.tokenId || obj.characterId === payload.characterId
+                ? { ...obj, x: payload.gridCol * (gridSettings?.size || 50), y: payload.gridRow * (gridSettings?.size || 50) }
+                : obj
+            )
+          }
+        }));
+      });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [tvChannel, mode, gridSettings]);
 
   // Save to history (for undo/redo)
   const saveToHistory = () => {
@@ -580,7 +708,6 @@ export default function PageCanvas({
   // Measure container and update viewport size
   useEffect(() => {
     let resizeTimeout;
-    let initialFitDone = false;
 
     const updateSize = () => {
       // Debounce per evitare troppi re-render
@@ -594,11 +721,13 @@ export default function PageCanvas({
           setViewportSize((prev) => {
             // Aggiorna solo se le dimensioni sono cambiate significativamente
             if (Math.abs(prev.width - newWidth) > 2 || Math.abs(prev.height - newHeight) > 2) {
-              console.log(`Canvas resized: ${newWidth}x${newHeight}`);
+              // Fit canvas to viewport on first load and when scene changes
+              const allowAutoFit = !initialFitDoneRef.current[mode] && newWidth > 100 && newHeight > 100;
 
-              // Fit canvas to viewport on first load (both edit and view mode)
-              if (!initialFitDone && newWidth > 100 && newHeight > 100) {
-                initialFitDone = true;
+              if (allowAutoFit) {
+                // Mark that auto-fit is done for this mode
+                initialFitDoneRef.current[mode] = true;
+
                 const scaleX = newWidth / canvasSize.width;
                 const scaleY = newHeight / canvasSize.height;
                 const fitScale = Math.min(scaleX, scaleY) * 0.95; // 95% to add some padding
@@ -609,7 +738,6 @@ export default function PageCanvas({
                   x: (newWidth - canvasSize.width * fitScale) / 2,
                   y: (newHeight - canvasSize.height * fitScale) / 2,
                 });
-                console.log(`✓ Canvas fitted to viewport (${mode} mode) with scale ${fitScale.toFixed(2)}`);
               }
 
               return { width: newWidth, height: newHeight };
@@ -748,6 +876,9 @@ export default function PageCanvas({
     setSelectedId(null);
     setSelectedLayer(null);
     setContextMenu(null);
+
+    // Save to history for undo/redo
+    saveToHistory();
   };
 
   // Update Object
@@ -901,58 +1032,43 @@ export default function PageCanvas({
     const lines = [];
     const { size, offsetX, offsetY } = gridSettings;
 
-    // If there's a main map, grid covers only map area
+    // If there's a main map, grid covers only the map area
+    // Otherwise, grid covers entire canvas
+    let gridMinX = 0;
+    let gridMinY = 0;
+    let gridMaxX = canvasSize.width;
+    let gridMaxY = canvasSize.height;
+
     if (pageSettings.mapImage) {
-      const map = pageSettings.mapImage;
-      const startX = (map.x || 0) + offsetX;
-      const startY = (map.y || 0) + offsetY;
-      const endX = (map.x || 0) + map.width;
-      const endY = (map.y || 0) + map.height;
+      gridMinX = pageSettings.mapImage.x || 0;
+      gridMinY = pageSettings.mapImage.y || 0;
+      gridMaxX = gridMinX + (pageSettings.mapImage.width || canvasSize.width);
+      gridMaxY = gridMinY + (pageSettings.mapImage.height || canvasSize.height);
+      console.log(`✓ Grid limited to map area: (${gridMinX}, ${gridMinY}) to (${gridMaxX}, ${gridMaxY})`);
+    }
 
-      // Vertical lines
-      for (let x = startX; x <= endX; x += size) {
+    // Vertical lines
+    for (let x = offsetX; x <= gridMaxX; x += size) {
+      if (x >= gridMinX) {
         lines.push(
           <Line
             key={`v-${x}`}
-            points={[x, map.y || 0, x, endY]}
+            points={[x, gridMinY, x, gridMaxY]}
             stroke={gridSettings.color}
             strokeWidth={2}
             opacity={gridSettings.opacity}
           />
         );
       }
+    }
 
-      // Horizontal lines
-      for (let y = startY; y <= endY; y += size) {
+    // Horizontal lines
+    for (let y = offsetY; y <= gridMaxY; y += size) {
+      if (y >= gridMinY) {
         lines.push(
           <Line
             key={`h-${y}`}
-            points={[map.x || 0, y, endX, y]}
-            stroke={gridSettings.color}
-            strokeWidth={2}
-            opacity={gridSettings.opacity}
-          />
-        );
-      }
-    } else {
-      // No main map - grid covers entire canvas (old behavior)
-      for (let x = offsetX; x <= canvasSize.width; x += size) {
-        lines.push(
-          <Line
-            key={`v-${x}`}
-            points={[x, 0, x, canvasSize.height]}
-            stroke={gridSettings.color}
-            strokeWidth={2}
-            opacity={gridSettings.opacity}
-          />
-        );
-      }
-
-      for (let y = offsetY; y <= canvasSize.height; y += size) {
-        lines.push(
-          <Line
-            key={`h-${y}`}
-            points={[0, y, canvasSize.width, y]}
+            points={[gridMinX, y, gridMaxX, y]}
             stroke={gridSettings.color}
             strokeWidth={2}
             opacity={gridSettings.opacity}
@@ -1048,6 +1164,16 @@ export default function PageCanvas({
           if (tool === "select") {
             setSelectedId(obj.id);
             setSelectedLayer("tokens");
+          } else if (tool === "erase") {
+            deleteObject("tokens", obj.id);
+          }
+        }}
+        onTap={(e) => {
+          if (tool === "select") {
+            setSelectedId(obj.id);
+            setSelectedLayer("tokens");
+          } else if (tool === "erase") {
+            deleteObject("tokens", obj.id);
           }
         }}
       >
@@ -1167,10 +1293,15 @@ export default function PageCanvas({
   });
 
   // Konva Image Component
-  const KonvaImageObject = ({ obj, layerName }) => {
+  const KonvaImageObject = React.memo(({ obj, layerName }) => {
     const [image] = useImage(obj.url);
     const shapeRef = useRef();
     const trRef = useRef();
+    const renderCount = useRef(0);
+    renderCount.current++;
+    if (renderCount.current % 10 === 0) {
+      console.log(`[${obj.id}] Re-rendered ${renderCount.current} times`);
+    }
 
     const isSelected = selectedId === obj.id && selectedLayer === layerName;
 
@@ -1181,6 +1312,8 @@ export default function PageCanvas({
         trRef.current.getLayer().batchDraw();
       }
     }, [isSelected]);
+
+    const isDraggable = tool === "select" && !layers[layerName].locked && layerName === currentLayer;
 
     return (
       <>
@@ -1193,7 +1326,8 @@ export default function PageCanvas({
         width={obj.width}
         height={obj.height}
         rotation={obj.rotation || 0}
-        draggable={tool === "select" && !layers[layerName].locked && layerName === currentLayer}
+        draggable={isDraggable}
+        perfectDrawEnabled={false}
         onClick={(e) => {
           if (tool === "select") {
             setSelectedId(obj.id);
@@ -1267,7 +1401,7 @@ export default function PageCanvas({
         )}
       </>
     );
-  };
+  });
 
   // Collapsible Section
   const CollapsibleSection = ({ id, title, icon, children }) => {
@@ -1327,13 +1461,15 @@ export default function PageCanvas({
     return (
       <div
         ref={stageContainerRef}
+        onContextMenu={(e) => e.preventDefault()}
         style={{
           position: "relative",
           width: "100%",
           height: "100%",
           overflow: "hidden",
           background: pageSettings.backgroundColor,
-          cursor: "default",
+          cursor: viewMeasure ? "crosshair" : "default",
+          touchAction: "none", // Disable touch gestures
         }}
       >
         <Stage
@@ -1345,6 +1481,49 @@ export default function PageCanvas({
           x={stagePos.x}
           y={stagePos.y}
           draggable={false}
+          onWheel={undefined}
+          onDragEnd={undefined}
+          onMouseDown={(e) => {
+            const stage = e.target.getStage();
+            const pos = stage.getPointerPosition();
+            const canvasPos = {
+              x: (pos.x - stagePos.x) / stageScale,
+              y: (pos.y - stagePos.y) / stageScale,
+            };
+            // Right-click: inizia misura
+            if (e.evt.button === 2) {
+              e.evt.preventDefault();
+              setViewMeasure({ startX: canvasPos.x, startY: canvasPos.y, endX: canvasPos.x, endY: canvasPos.y });
+            }
+            // Left-click: cancella misura
+            if (e.evt.button === 0 && viewMeasure) {
+              setViewMeasure(null);
+            }
+          }}
+          onMouseMove={(e) => {
+            const stage = e.target.getStage();
+            const pos = stage.getPointerPosition();
+            const canvasPos = {
+              x: (pos.x - stagePos.x) / stageScale,
+              y: (pos.y - stagePos.y) / stageScale,
+            };
+            const gSize = gridSettings?.size || 40;
+
+            // Cursor grid position disabled to prevent flickering
+            // If you need it, uncomment and increase throttle value (e.g., 500ms)
+            // const now = Date.now();
+            // if (now - lastCursorUpdate.current > 500) {
+            //   lastCursorUpdate.current = now;
+            //   setCursorGridPos({
+            //     col: Math.floor((canvasPos.x - (gridSettings?.offsetX || 0)) / gSize) + 1,
+            //     row: Math.floor((canvasPos.y - (gridSettings?.offsetY || 0)) / gSize) + 1,
+            //   });
+            // }
+
+            if (viewMeasure) {
+              setViewMeasure(prev => prev ? { ...prev, endX: canvasPos.x, endY: canvasPos.y } : null);
+            }
+          }}
         >
           {/* Background */}
           <Layer>
@@ -1375,7 +1554,7 @@ export default function PageCanvas({
           {/* OBJECTS Layer */}
           <Layer name="objects-layer" listening={currentLayer === "objects"}>
             {layers.objects.visible && layers.objects.objects.map((obj) => {
-              // Render drawings
+              // Render drawings (view mode - no interaction)
               if (obj.type === "freehand") {
                 return (
                   <Line
@@ -1487,27 +1666,82 @@ export default function PageCanvas({
           </Layer>
 
           {/* Fog of War Layer */}
-          {pageSettings.fogOfWar.enabled && pageSettings.mapImage && (
+          {pageSettings.fogOfWar.enabled && (
             <Layer listening={false}>
+              {/* Base fog — copre tutta l'area mappa */}
               <Rect
-                x={pageSettings.mapImage.x || 0}
-                y={pageSettings.mapImage.y || 0}
-                width={pageSettings.mapImage.width}
-                height={pageSettings.mapImage.height}
+                x={0} y={0}
+                width={(pageSettings.pageWidth || 25) * (gridSettings?.size || 40)}
+                height={(pageSettings.pageHeight || 25) * (gridSettings?.size || 40)}
                 fill="#000000"
                 opacity={0.9}
               />
-              {pageSettings.fogOfWar.revealedAreas.map((area, idx) => (
+              {/* Revealed areas — tagliano buchi nel fog */}
+              {(pageSettings.fogOfWar.revealedAreas || []).map((area, idx) => {
+                if (area.type === "circle") {
+                  return (
+                    <Circle key={`r-${idx}`}
+                      x={area.cx} y={area.cy} radius={area.radius}
+                      fill="#000000" globalCompositeOperation="destination-out"
+                    />
+                  );
+                }
+                if (area.type === "polygon" && area.points?.length >= 4) {
+                  return (
+                    <Line key={`r-${idx}`}
+                      points={area.points} closed fill="#000000"
+                      globalCompositeOperation="destination-out"
+                    />
+                  );
+                }
+                // Default: rect (backward compatible)
+                return (
+                  <Rect key={`r-${idx}`}
+                    x={area.x} y={area.y}
+                    width={area.width} height={area.height}
+                    fill="#000000" globalCompositeOperation="destination-out"
+                  />
+                );
+              })}
+              {/* Hidden areas — ri-disegnano fog sopra le rivelate */}
+              {(pageSettings.fogOfWar.hiddenAreas || []).map((area, idx) => {
+                if (area.type === "circle") {
+                  return (
+                    <Circle key={`h-${idx}`}
+                      x={area.cx} y={area.cy} radius={area.radius}
+                      fill="#000000" opacity={0.9}
+                    />
+                  );
+                }
+                return (
+                  <Rect key={`h-${idx}`}
+                    x={area.x} y={area.y}
+                    width={area.width} height={area.height}
+                    fill="#000000" opacity={0.9}
+                  />
+                );
+              })}
+              {/* Preview del fog reveal in corso (rettangolo tratteggiato) */}
+              {fogRevealStart && fogMode === "rect" && (
                 <Rect
-                  key={idx}
-                  x={area.x}
-                  y={area.y}
-                  width={area.width}
-                  height={area.height}
-                  fill="#000000"
-                  globalCompositeOperation="destination-out"
+                  x={fogRevealStart.width < 0 ? fogRevealStart.x + fogRevealStart.width : fogRevealStart.x}
+                  y={fogRevealStart.height < 0 ? fogRevealStart.y + fogRevealStart.height : fogRevealStart.y}
+                  width={Math.abs(fogRevealStart.width || 0)}
+                  height={Math.abs(fogRevealStart.height || 0)}
+                  stroke="rgba(76,175,80,0.8)" strokeWidth={2 / stageScale}
+                  dash={[8 / stageScale, 4 / stageScale]}
+                  fill="rgba(76,175,80,0.15)"
                 />
-              ))}
+              )}
+              {/* Preview polygon in costruzione */}
+              {fogPolygonPoints.length >= 2 && fogMode === "polygon" && (
+                <Line
+                  points={fogPolygonPoints}
+                  stroke="rgba(76,175,80,0.8)" strokeWidth={2 / stageScale}
+                  dash={[8 / stageScale, 4 / stageScale]}
+                  fill="rgba(76,175,80,0.1)" closed={fogPolygonPoints.length >= 6}
+                />
+              )}
             </Layer>
           )}
 
@@ -1531,7 +1765,137 @@ export default function PageCanvas({
               />
             </Layer>
           )}
+
+          {/* View mode: Linea misura distanza (right-click drag) */}
+          {viewMeasure && (
+            <Layer listening={false}>
+              {/* Linea principale */}
+              <Line
+                points={[viewMeasure.startX, viewMeasure.startY, viewMeasure.endX, viewMeasure.endY]}
+                stroke="#ffd700"
+                strokeWidth={3 / stageScale}
+                dash={[10 / stageScale, 5 / stageScale]}
+                opacity={0.9}
+              />
+              {/* Cerchietto start */}
+              <Circle x={viewMeasure.startX} y={viewMeasure.startY}
+                radius={6 / stageScale} fill="#ffd700" opacity={0.8} />
+              {/* Cerchietto end */}
+              <Circle x={viewMeasure.endX} y={viewMeasure.endY}
+                radius={6 / stageScale} fill="#ffd700" opacity={0.8} />
+              {/* Label distanza */}
+              {(() => {
+                const dx = viewMeasure.endX - viewMeasure.startX;
+                const dy = viewMeasure.endY - viewMeasure.startY;
+                const distPx = Math.sqrt(dx * dx + dy * dy);
+                const gSize = gridSettings?.size || 40;
+                const squares = distPx / gSize;
+                const feet = squares * 5;
+                const midX = (viewMeasure.startX + viewMeasure.endX) / 2;
+                const midY = (viewMeasure.startY + viewMeasure.endY) / 2;
+                return (
+                  <Group x={midX} y={midY - 20 / stageScale}>
+                    <Rect
+                      x={-45 / stageScale} y={-12 / stageScale}
+                      width={90 / stageScale} height={24 / stageScale}
+                      fill="rgba(0,0,0,0.85)" cornerRadius={4 / stageScale}
+                    />
+                    <KonvaText
+                      text={`${feet.toFixed(0)} ft (${squares.toFixed(1)}□)`}
+                      x={-42 / stageScale} y={-8 / stageScale}
+                      fontSize={11 / stageScale}
+                      fill="#ffd700" fontStyle="bold"
+                    />
+                  </Group>
+                );
+              })()}
+            </Layer>
+          )}
         </Stage>
+
+        {/* Coordinate display — bottom left */}
+        {cursorGridPos && (
+          <div style={{
+            position: "absolute", bottom: 12, left: 12,
+            background: "rgba(10,8,6,0.9)",
+            border: "1px solid rgba(212,175,55,0.25)",
+            borderRadius: 6, padding: "4px 10px",
+            fontSize: "0.6rem", color: "rgba(212,175,55,0.7)",
+            fontFamily: "monospace", fontWeight: 600,
+            zIndex: 50,
+          }}>
+            Col {cursorGridPos.col}, Riga {cursorGridPos.row}
+          </div>
+        )}
+
+        {/* Misura distanza info */}
+        {viewMeasure && (
+          <div style={{
+            position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)",
+            background: "rgba(10,8,6,0.9)",
+            border: "1px solid rgba(255,215,0,0.4)",
+            borderRadius: 8, padding: "6px 16px",
+            fontSize: "0.7rem", color: "#ffd700",
+            fontWeight: 600, zIndex: 50,
+            display: "flex", alignItems: "center", gap: 12,
+          }}>
+            <span>Tasto destro per misurare</span>
+            <span style={{ color: "rgba(255,255,255,0.3)" }}>|</span>
+            <button onClick={() => setViewMeasure(null)}
+              style={{
+                background: "rgba(255,215,0,0.15)", border: "1px solid rgba(255,215,0,0.3)",
+                borderRadius: 4, padding: "2px 8px", color: "#ffd700",
+                cursor: "pointer", fontSize: "0.6rem",
+              }}>
+              Cancella misura
+            </button>
+          </div>
+        )}
+
+        {/* ═══ VIEW MODE: ZOOM BAR ═══ */}
+        <div style={{
+          position: "absolute", bottom: 16, right: 16,
+          display: "flex", flexDirection: "column", gap: 10,
+          zIndex: 50, alignItems: "center",
+        }}>
+          {/* Zoom */}
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+            background: "rgba(10,8,6,0.9)",
+            border: "1px solid rgba(212,175,55,0.25)",
+            borderRadius: 8, padding: "6px 5px",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
+          }}>
+            <button onClick={() => setStageScale(Math.min(stageScale * 1.2, 5))}
+              style={{
+                width: 26, height: 26, borderRadius: 5,
+                background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.2)",
+                color: "var(--gold)", cursor: "pointer", fontSize: "0.9rem",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>+</button>
+
+            <div style={{ fontSize: "0.5rem", color: "var(--gold)", fontWeight: 600 }}>
+              {(stageScale * 100).toFixed(0)}%
+            </div>
+
+            <button onClick={() => setStageScale(Math.max(stageScale / 1.2, 0.1))}
+              style={{
+                width: 26, height: 26, borderRadius: 5,
+                background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.2)",
+                color: "var(--gold)", cursor: "pointer", fontSize: "0.9rem",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>-</button>
+
+            <button onClick={() => { setStageScale(1); setStagePos({ x: 0, y: 0 }); }}
+              style={{
+                width: 26, height: 18, borderRadius: 3,
+                background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.15)",
+                color: "rgba(212,175,55,0.6)", cursor: "pointer",
+                fontSize: "0.45rem", fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>FIT</button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1632,7 +1996,12 @@ export default function PageCanvas({
                   <motion.button
                     key={t.id}
                     onClick={() => {
-                      setTool(t.id);
+                      // Toggle: se "pan" è già attivo, torna a "select"
+                      if (tool === t.id && t.id === "pan") {
+                        setTool("select");
+                      } else {
+                        setTool(t.id);
+                      }
                       setSelectedId(null);
                       setSelectedLayer(null);
                     }}
@@ -1717,10 +2086,15 @@ export default function PageCanvas({
                         <motion.button
                           key={t.id}
                           onClick={() => {
-                            setTool(t.id);
+                            // Toggle: se il tool è già attivo, torna a "select"
+                            if (tool === t.id) {
+                              setTool("select");
+                            } else {
+                              setTool(t.id);
+                              setSelectedId(null);
+                              setSelectedLayer(null);
+                            }
                             setShowDrawingMenu(false);
-                            setSelectedId(null);
-                            setSelectedLayer(null);
                           }}
                           whileHover={{ background: "rgba(212,175,55,0.2)" }}
                           style={{
@@ -1762,15 +2136,20 @@ export default function PageCanvas({
                   { id: "ruler", icon: "⟷", label: "Ruler" },
                   { id: "ping", icon: "◉", label: "Ping" },
                   { id: "fog", icon: "◐", label: "Fog" },
-                  { id: "erase", icon: "✗", label: "Erase" },
+                  { id: "erase", icon: "eraser", label: "Gomma" },
                 ].map((t) => (
                   <motion.button
                     key={t.id}
                     onClick={() => {
-                      setTool(t.id);
-                      if (t.id !== "select") {
-                        setSelectedId(null);
-                        setSelectedLayer(null);
+                      // Toggle: se il tool è già attivo, torna a "select"
+                      if (tool === t.id) {
+                        setTool("select");
+                      } else {
+                        setTool(t.id);
+                        if (t.id !== "select") {
+                          setSelectedId(null);
+                          setSelectedLayer(null);
+                        }
                       }
                     }}
                     whileHover={{ scale: 1.05 }}
@@ -1790,13 +2169,150 @@ export default function PageCanvas({
                       transition: "all 0.15s ease",
                     }}
                   >
-                    {t.icon}
+                    {t.icon === "eraser" ? <FaEraser /> : t.icon}
                     <span style={{ fontSize: "0.7rem" }}>{t.label}</span>
                   </motion.button>
                 ))}
               </div>
             </div>
           </div>
+
+          {/* ═══ FOG OF WAR SUB-TOOLBAR ═══ */}
+          {tool === "fog" && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "6px 12px",
+              background: "rgba(0,0,0,0.6)",
+              borderBottom: "1px solid rgba(76,175,80,0.2)",
+            }}>
+              {/* Fog mode buttons */}
+              {[
+                { id: "rect", label: "Rettangolo", icon: "▭" },
+                { id: "brush", label: "Pennello", icon: "●" },
+                { id: "polygon", label: "Poligono", icon: "⬠" },
+                { id: "hide", label: "Nascondi", icon: "■" },
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => { setFogMode(m.id); setFogPolygonPoints([]); }}
+                  title={m.label}
+                  style={{
+                    padding: "6px 12px",
+                    background: fogMode === m.id ? "rgba(76,175,80,0.25)" : "transparent",
+                    border: fogMode === m.id ? "1px solid rgba(76,175,80,0.5)" : "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 6,
+                    color: fogMode === m.id
+                      ? (m.id === "hide" ? "#ff6b6b" : "#4caf50")
+                      : "rgba(255,255,255,0.5)",
+                    cursor: "pointer",
+                    fontSize: "0.75rem",
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}
+                >
+                  <span style={{ fontSize: "0.9rem" }}>{m.icon}</span> {m.label}
+                </button>
+              ))}
+
+              <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
+
+              {/* Brush size — solo per brush e hide */}
+              {(fogMode === "brush" || fogMode === "hide") && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.4)" }}>Dimensione:</span>
+                  <input
+                    type="range" min="10" max="200" step="5"
+                    value={fogBrushSize}
+                    onChange={(e) => setFogBrushSize(Number(e.target.value))}
+                    style={{ width: 80, cursor: "pointer" }}
+                  />
+                  <span style={{ fontSize: "0.65rem", color: "var(--gold)", fontWeight: 600, minWidth: 28 }}>{fogBrushSize}</span>
+                </div>
+              )}
+
+              {/* Polygon confirm */}
+              {fogMode === "polygon" && fogPolygonPoints.length >= 6 && (
+                <button
+                  onClick={() => {
+                    if (fogPolygonPoints.length >= 6) {
+                      revealFogArea({ type: "polygon", points: [...fogPolygonPoints] });
+                      setFogPolygonPoints([]);
+                    }
+                  }}
+                  style={{
+                    padding: "6px 14px",
+                    background: "rgba(76,175,80,0.25)",
+                    border: "1px solid rgba(76,175,80,0.5)",
+                    borderRadius: 6, color: "#4caf50",
+                    cursor: "pointer", fontSize: "0.75rem", fontWeight: 600,
+                  }}
+                >
+                  Conferma Poligono
+                </button>
+              )}
+
+              {fogMode === "polygon" && fogPolygonPoints.length > 0 && (
+                <button
+                  onClick={() => setFogPolygonPoints([])}
+                  style={{
+                    padding: "6px 10px",
+                    background: "transparent",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 6, color: "rgba(255,255,255,0.4)",
+                    cursor: "pointer", fontSize: "0.65rem",
+                  }}
+                >
+                  Annulla
+                </button>
+              )}
+
+              <div style={{ flex: 1 }} />
+
+              {/* Fog On/Off */}
+              <button
+                onClick={toggleFogOfWar}
+                style={{
+                  padding: "6px 12px",
+                  background: pageSettings.fogOfWar.enabled ? "rgba(76,175,80,0.15)" : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${pageSettings.fogOfWar.enabled ? "rgba(76,175,80,0.4)" : "rgba(255,255,255,0.1)"}`,
+                  borderRadius: 6,
+                  color: pageSettings.fogOfWar.enabled ? "#4caf50" : "rgba(255,255,255,0.4)",
+                  cursor: "pointer", fontSize: "0.65rem", fontWeight: 600,
+                }}
+              >
+                Fog {pageSettings.fogOfWar.enabled ? "ON" : "OFF"}
+              </button>
+
+              {/* Reveal all */}
+              <button
+                onClick={revealAllFog}
+                title="Rivela tutto"
+                style={{
+                  padding: "6px 10px",
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 6, color: "rgba(255,255,255,0.4)",
+                  cursor: "pointer", fontSize: "0.65rem",
+                }}
+              >
+                Rivela Tutto
+              </button>
+
+              {/* Reset fog */}
+              <button
+                onClick={resetFog}
+                title="Nascondi tutto"
+                style={{
+                  padding: "6px 10px",
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 6, color: "#ff6b6b",
+                  cursor: "pointer", fontSize: "0.65rem",
+                }}
+              >
+                Reset Fog
+              </button>
+            </div>
+          )}
 
           {/* Info */}
           <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
@@ -1855,16 +2371,27 @@ export default function PageCanvas({
             scaleY={stageScale}
             x={stagePos.x}
             y={stagePos.y}
-            draggable={tool === "pan" && mode === "edit"}
-            onWheel={mode === "edit" ? handleWheel : undefined}
-            onMouseDown={mode === "edit" ? (e) => {
-              const clickedOnEmpty = e.target === e.target.getStage();
+            draggable={mode !== "edit" || tool === "pan"}
+            onWheel={handleWheel}
+            onMouseDown={(e) => {
               const stage = e.target.getStage();
               const pos = stage.getPointerPosition();
               const canvasPos = {
                 x: (pos.x - stagePos.x) / stageScale,
                 y: (pos.y - stagePos.y) / stageScale,
               };
+
+              // View mode: right-click misura distanza
+              if (mode !== "edit") {
+                if (e.evt.button === 2) {
+                  e.evt.preventDefault();
+                  setViewMeasure({ startX: canvasPos.x, startY: canvasPos.y, endX: canvasPos.x, endY: canvasPos.y });
+                }
+                return;
+              }
+
+              // === EDIT MODE ===
+              const clickedOnEmpty = e.target === e.target.getStage();
 
               // Grid alignment mode
               if (gridAlignMode) {
@@ -1891,10 +2418,16 @@ export default function PageCanvas({
               // Shape tools (rectangle, circle, line)
               if (["rectangle", "circle", "line"].includes(tool)) {
                 setIsDrawing(true);
+                const snappedPos = gridSettings.snapToGrid
+                  ? {
+                      x: snapToGrid(canvasPos.x, gridSettings.size, gridSettings.offsetX),
+                      y: snapToGrid(canvasPos.y, gridSettings.size, gridSettings.offsetY),
+                    }
+                  : canvasPos;
                 setCurrentDrawing({
                   type: tool,
-                  start: canvasPos,
-                  end: canvasPos,
+                  start: snappedPos,
+                  end: snappedPos,
                   color: drawColor,
                   width: drawWidth,
                 });
@@ -1922,11 +2455,17 @@ export default function PageCanvas({
               if (tool === "text") {
                 const text = prompt("Enter text:");
                 if (text) {
+                  const snappedX = gridSettings.snapToGrid
+                    ? snapToGrid(canvasPos.x, gridSettings.size, gridSettings.offsetX)
+                    : canvasPos.x;
+                  const snappedY = gridSettings.snapToGrid
+                    ? snapToGrid(canvasPos.y, gridSettings.size, gridSettings.offsetY)
+                    : canvasPos.y;
                   const newText = {
                     id: `text-${Date.now()}`,
                     type: "text",
-                    x: canvasPos.x,
-                    y: canvasPos.y,
+                    x: snappedX,
+                    y: snappedY,
                     text: text,
                     color: drawColor,
                     fontSize: 24,
@@ -1958,14 +2497,22 @@ export default function PageCanvas({
                 return;
               }
 
-              // Fog of war reveal tool
+              // Fog of war tools
               if (tool === "fog" && pageSettings.fogOfWar.enabled) {
-                setFogRevealStart({
-                  x: canvasPos.x,
-                  y: canvasPos.y,
-                  width: 0,
-                  height: 0,
-                });
+                if (fogMode === "rect") {
+                  setFogRevealStart({ x: canvasPos.x, y: canvasPos.y, width: 0, height: 0 });
+                } else if (fogMode === "brush") {
+                  // Aggiungi cerchio alla posizione corrente
+                  revealFogArea({ type: "circle", cx: canvasPos.x, cy: canvasPos.y, radius: fogBrushSize });
+                  setIsDrawing(true);
+                } else if (fogMode === "hide") {
+                  // Nascondi area
+                  hideFogArea({ type: "circle", cx: canvasPos.x, cy: canvasPos.y, radius: fogBrushSize });
+                  setIsDrawing(true);
+                } else if (fogMode === "polygon") {
+                  // Aggiungi punto al poligono — doppio click chiude
+                  setFogPolygonPoints(prev => [...prev, canvasPos.x, canvasPos.y]);
+                }
                 return;
               }
 
@@ -1973,14 +2520,34 @@ export default function PageCanvas({
                 setSelectedId(null);
                 setSelectedLayer(null);
               }
-            } : undefined}
-            onMouseMove={mode === "edit" ? (e) => {
+            }}
+            onMouseMove={(e) => {
               const stage = e.target.getStage();
               const pos = stage.getPointerPosition();
               const canvasPos = {
                 x: (pos.x - stagePos.x) / stageScale,
                 y: (pos.y - stagePos.y) / stageScale,
               };
+
+              // Cursor grid position disabled to prevent flickering
+              // If you need it, uncomment and increase throttle value (e.g., 500ms)
+              // const gSize = gridSettings?.size || 40;
+              // const now = Date.now();
+              // if (now - lastCursorUpdate.current > 500) {
+              //   lastCursorUpdate.current = now;
+              //   setCursorGridPos({
+              //     col: Math.floor((canvasPos.x - (gridSettings?.offsetX || 0)) / gSize) + 1,
+              //     row: Math.floor((canvasPos.y - (gridSettings?.offsetY || 0)) / gSize) + 1,
+              //   });
+              // }
+
+              // View mode: aggiorna misura
+              if (mode !== "edit") {
+                if (viewMeasure) {
+                  setViewMeasure(prev => prev ? { ...prev, endX: canvasPos.x, endY: canvasPos.y } : null);
+                }
+                return;
+              }
 
               if (gridAlignMode && alignStart) {
                 setAlignEnd(canvasPos);
@@ -1996,9 +2563,15 @@ export default function PageCanvas({
 
               // Drawing shapes
               if (isDrawing && ["rectangle", "circle", "line"].includes(currentDrawing?.type)) {
+                const snappedPos = gridSettings.snapToGrid
+                  ? {
+                      x: snapToGrid(canvasPos.x, gridSettings.size, gridSettings.offsetX),
+                      y: snapToGrid(canvasPos.y, gridSettings.size, gridSettings.offsetY),
+                    }
+                  : canvasPos;
                 setCurrentDrawing({
                   ...currentDrawing,
-                  end: canvasPos,
+                  end: snappedPos,
                 });
               }
 
@@ -2007,15 +2580,32 @@ export default function PageCanvas({
                 setRulerEnd(canvasPos);
               }
 
-              if (tool === "fog" && fogRevealStart) {
+              if (tool === "fog" && fogRevealStart && fogMode === "rect") {
                 setFogRevealStart({
                   ...fogRevealStart,
                   width: canvasPos.x - fogRevealStart.x,
                   height: canvasPos.y - fogRevealStart.y,
                 });
               }
-            } : undefined}
-            onMouseUp={mode === "edit" ? (e) => {
+
+              // Brush fog reveal — continua ad aggiungere cerchi durante drag
+              if (tool === "fog" && isDrawing && fogMode === "brush") {
+                revealFogArea({ type: "circle", cx: canvasPos.x, cy: canvasPos.y, radius: fogBrushSize });
+              }
+
+              // Hide fog — continua a nascondere durante drag
+              if (tool === "fog" && isDrawing && fogMode === "hide") {
+                hideFogArea({ type: "circle", cx: canvasPos.x, cy: canvasPos.y, radius: fogBrushSize });
+              }
+            }}
+            onMouseUp={(e) => {
+              // View mode: completa misura
+              if (mode !== "edit") {
+                // Misura resta visibile fino al prossimo click
+                return;
+              }
+
+              // === EDIT MODE ===
               // Complete drawing
               if (isDrawing && currentDrawing) {
                 const newDrawing = {
@@ -2037,23 +2627,27 @@ export default function PageCanvas({
               }
 
               // Complete fog reveal
-              if (tool === "fog" && fogRevealStart && (fogRevealStart.width !== 0 || fogRevealStart.height !== 0)) {
+              if (tool === "fog" && fogRevealStart && fogMode === "rect" && (fogRevealStart.width !== 0 || fogRevealStart.height !== 0)) {
                 const x = fogRevealStart.width < 0 ? fogRevealStart.x + fogRevealStart.width : fogRevealStart.x;
                 const y = fogRevealStart.height < 0 ? fogRevealStart.y + fogRevealStart.height : fogRevealStart.y;
                 const width = Math.abs(fogRevealStart.width);
                 const height = Math.abs(fogRevealStart.height);
 
-                revealFogArea(x, y, width, height);
+                revealFogArea({ type: "rect", x, y, width, height });
                 setFogRevealStart(null);
               }
-            } : undefined}
-            onDragEnd={mode === "edit" ? (e) => {
-              if (tool === "pan") {
-                setStagePos({ x: e.target.x(), y: e.target.y() });
-                // Aggiorna transformer dopo pan
-                setTimeout(updateTransformer, 0);
+
+              // Stop brush/hide drawing
+              if (tool === "fog" && isDrawing && (fogMode === "brush" || fogMode === "hide")) {
+                setIsDrawing(false);
               }
-            } : undefined}
+            }}
+            onDragEnd={(e) => {
+              if (mode !== "edit" || tool === "pan") {
+                setStagePos({ x: e.target.x(), y: e.target.y() });
+                if (mode === "edit") setTimeout(updateTransformer, 0);
+              }
+            }}
           >
             {/* Background */}
             <Layer>
@@ -2073,7 +2667,7 @@ export default function PageCanvas({
             </Layer>
 
             {/* MAP Layer */}
-            <Layer name="map-layer" listening={currentLayer === "map"}>
+            <Layer name="map-layer" listening={currentLayer === "map" || tool === "erase"}>
               {layers.map.visible && layers.map.objects.map((obj) => (
                 <KonvaImageObject key={obj.id} obj={obj} layerName="map" />
               ))}
@@ -2102,7 +2696,7 @@ export default function PageCanvas({
             )}
 
             {/* OBJECTS Layer */}
-            <Layer name="objects-layer" listening={currentLayer === "objects"}>
+            <Layer name="objects-layer" listening={currentLayer === "objects" || tool === "erase"}>
               {layers.objects.visible && layers.objects.objects.map((obj) => {
                 // Render drawings (freehand, shapes)
                 if (obj.type === "freehand") {
@@ -2116,6 +2710,29 @@ export default function PageCanvas({
                       lineCap="round"
                       lineJoin="round"
                       globalCompositeOperation="source-over"
+                      hitStrokeWidth={tool === "erase" ? 20 : obj.width}
+                      onMouseEnter={(e) => {
+                        if (tool === "erase") {
+                          e.target.getStage().container().style.cursor = "pointer";
+                          e.target.opacity(0.5);
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (tool === "erase") {
+                          e.target.getStage().container().style.cursor = "default";
+                          e.target.opacity(1);
+                        }
+                      }}
+                      onClick={() => {
+                        if (tool === "erase") {
+                          deleteObject("objects", obj.id);
+                        }
+                      }}
+                      onTap={() => {
+                        if (tool === "erase") {
+                          deleteObject("objects", obj.id);
+                        }
+                      }}
                     />
                   );
                 }
@@ -2127,6 +2744,29 @@ export default function PageCanvas({
                       stroke={obj.color}
                       strokeWidth={obj.width}
                       lineCap="round"
+                      hitStrokeWidth={tool === "erase" ? 20 : obj.width}
+                      onMouseEnter={(e) => {
+                        if (tool === "erase") {
+                          e.target.getStage().container().style.cursor = "pointer";
+                          e.target.opacity(0.5);
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (tool === "erase") {
+                          e.target.getStage().container().style.cursor = "default";
+                          e.target.opacity(1);
+                        }
+                      }}
+                      onClick={() => {
+                        if (tool === "erase") {
+                          deleteObject("objects", obj.id);
+                        }
+                      }}
+                      onTap={() => {
+                        if (tool === "erase") {
+                          deleteObject("objects", obj.id);
+                        }
+                      }}
                     />
                   );
                 }
@@ -2144,6 +2784,28 @@ export default function PageCanvas({
                       height={height}
                       stroke={obj.color}
                       strokeWidth={obj.width}
+                      onMouseEnter={(e) => {
+                        if (tool === "erase") {
+                          e.target.getStage().container().style.cursor = "pointer";
+                          e.target.opacity(0.5);
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (tool === "erase") {
+                          e.target.getStage().container().style.cursor = "default";
+                          e.target.opacity(1);
+                        }
+                      }}
+                      onClick={() => {
+                        if (tool === "erase") {
+                          deleteObject("objects", obj.id);
+                        }
+                      }}
+                      onTap={() => {
+                        if (tool === "erase") {
+                          deleteObject("objects", obj.id);
+                        }
+                      }}
                     />
                   );
                 }
@@ -2159,6 +2821,28 @@ export default function PageCanvas({
                       radius={radius}
                       stroke={obj.color}
                       strokeWidth={obj.width}
+                      onMouseEnter={(e) => {
+                        if (tool === "erase") {
+                          e.target.getStage().container().style.cursor = "pointer";
+                          e.target.opacity(0.5);
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (tool === "erase") {
+                          e.target.getStage().container().style.cursor = "default";
+                          e.target.opacity(1);
+                        }
+                      }}
+                      onClick={() => {
+                        if (tool === "erase") {
+                          deleteObject("objects", obj.id);
+                        }
+                      }}
+                      onTap={() => {
+                        if (tool === "erase") {
+                          deleteObject("objects", obj.id);
+                        }
+                      }}
                     />
                   );
                 }
@@ -2175,6 +2859,28 @@ export default function PageCanvas({
                       shadowColor="rgba(0,0,0,0.8)"
                       shadowBlur={4}
                       shadowOffset={{ x: 2, y: 2 }}
+                      onMouseEnter={(e) => {
+                        if (tool === "erase") {
+                          e.target.getStage().container().style.cursor = "pointer";
+                          e.target.opacity(0.5);
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (tool === "erase") {
+                          e.target.getStage().container().style.cursor = "default";
+                          e.target.opacity(1);
+                        }
+                      }}
+                      onClick={() => {
+                        if (tool === "erase") {
+                          deleteObject("objects", obj.id);
+                        }
+                      }}
+                      onTap={() => {
+                        if (tool === "erase") {
+                          deleteObject("objects", obj.id);
+                        }
+                      }}
                     />
                   );
                 }
@@ -2219,7 +2925,7 @@ export default function PageCanvas({
             </Layer>
 
             {/* TOKENS Layer */}
-            <Layer name="tokens-layer" listening={currentLayer === "tokens"}>
+            <Layer name="tokens-layer" listening={currentLayer === "tokens" || tool === "erase"}>
               {layers.tokens.visible && layers.tokens.objects.map((obj) => {
                 // Only extract config for character tokens
                 if (!obj.characterId) {
@@ -2428,6 +3134,87 @@ export default function PageCanvas({
                   <span>✗</span> Elimina
                 </motion.button>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ═══ ZOOM BAR VERTICALE ═══ */}
+          <AnimatePresence>
+            {showZoomControls && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              style={{
+                position: "absolute", bottom: 16, right: 16,
+                display: "flex", flexDirection: "column", gap: 10,
+                zIndex: 50, alignItems: "center",
+              }}>
+              {/* Zoom controls verticali */}
+              <div style={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                background: "rgba(10,8,6,0.9)",
+                border: "1px solid rgba(212,175,55,0.25)",
+                borderRadius: 8, padding: "8px 6px",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
+              }}>
+              <button onClick={() => setStageScale(Math.min(stageScale * 1.2, 5))}
+                style={{
+                  width: 28, height: 28, borderRadius: 6,
+                  background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.2)",
+                  color: "var(--gold)", cursor: "pointer", fontSize: "1rem",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>+</button>
+
+              <div style={{ position: "relative", width: 28, height: 120 }}>
+                <input type="range" min="10" max="500" step="5"
+                  value={Math.min(Math.max(stageScale * 100, 10), 500)}
+                  onChange={(e) => setStageScale(Number(e.target.value) / 100)}
+                  style={{
+                    position: "absolute", width: 120, height: 28,
+                    left: "50%", top: "50%",
+                    transform: "translate(-50%, -50%) rotate(-90deg)",
+                    WebkitAppearance: "none", appearance: "none",
+                    background: "transparent", cursor: "pointer",
+                  }}
+                />
+                <div style={{
+                  position: "absolute", left: "50%", top: 4, bottom: 4,
+                  width: 3, marginLeft: -1.5, borderRadius: 2,
+                  background: "rgba(212,175,55,0.15)", pointerEvents: "none",
+                }}>
+                  <div style={{
+                    position: "absolute", bottom: 0, width: "100%", borderRadius: 2,
+                    height: `${Math.min(Math.max(((stageScale * 100 - 10) / 490) * 100, 0), 100)}%`,
+                    background: "rgba(212,175,55,0.5)",
+                    transition: "height 0.2s ease-out",
+                  }} />
+                </div>
+              </div>
+
+              <button onClick={() => setStageScale(Math.max(stageScale / 1.2, 0.1))}
+                style={{
+                  width: 28, height: 28, borderRadius: 6,
+                  background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.2)",
+                  color: "var(--gold)", cursor: "pointer", fontSize: "1rem",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>-</button>
+
+              <div style={{ fontSize: "0.55rem", color: "var(--gold)", fontWeight: 600 }}>
+                {(stageScale * 100).toFixed(0)}%
+              </div>
+
+              <button onClick={() => { setStageScale(1); setStagePos({ x: 0, y: 0 }); }}
+                title="Reset zoom"
+                style={{
+                  width: 28, height: 20, borderRadius: 4,
+                  background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.15)",
+                  color: "rgba(212,175,55,0.6)", cursor: "pointer",
+                  fontSize: "0.5rem", fontWeight: 700,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>FIT</button>
+              </div>
+            </motion.div>
             )}
           </AnimatePresence>
         </div>
@@ -2911,8 +3698,8 @@ export default function PageCanvas({
               </label>
               <input
                 type="range"
-                min="35"
-                max="140"
+                min="20"
+                max="200"
                 step="5"
                 value={gridSettings.size}
                 onChange={(e) => setGridSettings({ ...gridSettings, size: parseInt(e.target.value) })}
@@ -3600,4 +4387,6 @@ export default function PageCanvas({
       />
     </div>
   );
-}
+});
+
+export default PageCanvas;
