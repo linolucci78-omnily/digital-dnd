@@ -23,13 +23,16 @@
     "cannon-es": "^0.20.0",
     "dddice-js": "^0.19.34-974",
     "framer-motion": "^12.34.2",
+    "konva": "^10.2.0",
     "lottie-react": "^2.4.1",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "three": "^0.183.1"
+    "react-konva": "^19.2.3",
+    "three": "^0.183.1",
+    "use-image": "^1.1.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
