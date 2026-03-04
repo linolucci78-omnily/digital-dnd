@@ -19,6 +19,7 @@ import DiceRollModal from "../shared/components/DiceRollModal.jsx";
 import { supabase } from "../lib/supabase";
 import DnDIcon from "../shared/components/DnDIcon.jsx";
 import Modal from "../components/Modal.jsx";
+import { FiEdit3, FiCopy, FiMonitor, FiTrash2, FiMoreVertical, FiFlag } from "react-icons/fi";
 
 const SCENE_TYPE_CONFIG = {
   exploration: { label: "Esplorazione", icon: "explore", color: "#4caf50" },
@@ -470,39 +471,44 @@ export default function SceneEditor({
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {/* Bandierina standalone — quando nessuna scena e in live */}
               {!activeSceneId && scenes.length > 0 && (
-                <div style={{
-                  padding: "8px 12px",
-                  background: "rgba(76,175,80,0.08)",
-                  border: "1px dashed rgba(76,175,80,0.3)",
-                  borderRadius: 8,
-                  display: "flex", alignItems: "center", gap: 10,
-                }}>
-                  <div
-                    draggable
-                    onDragStart={(e) => {
-                      setDraggingFlag(true);
-                      const ghost = document.createElement("div");
-                      ghost.innerHTML = "\u{1F6A9}";
-                      ghost.style.cssText = "position:absolute;top:-999px;font-size:24px;";
-                      document.body.appendChild(ghost);
-                      e.dataTransfer.setDragImage(ghost, 12, 12);
-                      setTimeout(() => document.body.removeChild(ghost), 0);
-                      e.dataTransfer.effectAllowed = "move";
-                    }}
-                    onDragEnd={() => {
-                      setDraggingFlag(false);
-                      setFlagDropTarget(null);
-                    }}
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggingFlag(true);
+                    const ghost = document.createElement("div");
+                    ghost.innerHTML = "🚩";
+                    ghost.style.cssText = "position:absolute;top:-999px;font-size:24px;";
+                    document.body.appendChild(ghost);
+                    e.dataTransfer.setDragImage(ghost, 12, 12);
+                    setTimeout(() => document.body.removeChild(ghost), 0);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragEnd={() => {
+                    setDraggingFlag(false);
+                    setFlagDropTarget(null);
+                  }}
+                  style={{
+                    padding: "10px 14px",
+                    background: "rgba(76,175,80,0.08)",
+                    border: "1px dashed rgba(76,175,80,0.3)",
+                    borderRadius: 8,
+                    display: "flex", alignItems: "center", gap: 10,
+                    cursor: "grab",
+                    userSelect: "none",
+                  }}
+                >
+                  <FiFlag
+                    size={18}
                     style={{
-                      cursor: "grab", padding: 4,
-                      color: "rgba(76,175,80,0.6)",
+                      color: "rgba(76,175,80,0.7)",
+                      pointerEvents: "none",
+                      flexShrink: 0,
                     }}
-                  >
-                    <DnDIcon icon="flag" size={20} />
-                  </div>
+                  />
                   <span style={{
-                    fontSize: "0.65rem", color: "rgba(255,255,255,0.35)",
-                    fontStyle: "italic",
+                    fontSize: "0.65rem", color: "rgba(255,255,255,0.5)",
+                    fontWeight: 500,
+                    pointerEvents: "none",
                   }}>
                     Trascina sulla scena da trasmettere
                   </span>
@@ -573,7 +579,7 @@ export default function SceneEditor({
                     )}
 
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <div style={{
                           fontWeight: 600, fontSize: "0.82rem",
                           color: isSelected ? "var(--gold)" : "rgba(255,255,255,0.85)",
@@ -588,46 +594,79 @@ export default function SceneEditor({
                         </div>
                       </div>
 
-                      {/* Bandierina LIVE — draggabile, presente solo sulla scena attiva */}
-                      {isActive && (
-                        <div
-                          draggable
-                          onDragStart={(e) => {
-                            setDraggingFlag(true);
-                            // Icona drag custom
-                            const ghost = document.createElement("div");
-                            ghost.innerHTML = "🚩";
-                            ghost.style.cssText = "position:absolute;top:-999px;font-size:24px;";
-                            document.body.appendChild(ghost);
-                            e.dataTransfer.setDragImage(ghost, 12, 12);
-                            setTimeout(() => document.body.removeChild(ghost), 0);
-                            e.dataTransfer.effectAllowed = "move";
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        {/* Menu button (tre puntini) */}
+                        <motion.button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setContextMenu({ x: e.clientX, y: e.clientY, sceneId: scene.id });
                           }}
-                          onDragEnd={() => {
-                            setDraggingFlag(false);
-                            setFlagDropTarget(null);
-                          }}
-                          title="Trascina su un'altra scena per metterla in LIVE"
+                          whileHover={{ background: "rgba(255,255,255,0.12)" }}
+                          whileTap={{ scale: 0.9 }}
                           style={{
-                            cursor: "grab", padding: 4,
-                            color: "#4caf50",
-                            filter: "drop-shadow(0 0 6px rgba(76,175,80,0.5))",
-                            transition: "transform 0.2s",
+                            padding: 4,
+                            background: "rgba(255,255,255,0.05)",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            borderRadius: 4,
+                            color: "rgba(255,255,255,0.5)",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "all 0.1s ease",
                           }}
+                          title="Options"
                         >
-                          <DnDIcon icon="flag" size={20} />
-                        </div>
-                      )}
+                          <FiMoreVertical size={14} />
+                        </motion.button>
 
-                      {/* Indicatore drop target */}
-                      {isDropTarget && !isActive && (
-                        <div style={{
-                          color: "#4caf50", opacity: 0.5,
-                          animation: "pulse-flag 1s ease-in-out infinite",
-                        }}>
-                          <DnDIcon icon="flag" size={18} />
-                        </div>
-                      )}
+                        {/* Bandierina LIVE — draggabile, presente solo sulla scena attiva */}
+                        {isActive && (
+                          <div
+                            draggable
+                            onDragStart={(e) => {
+                              e.stopPropagation();
+                              setDraggingFlag(true);
+                              // Icona drag custom
+                              const ghost = document.createElement("div");
+                              ghost.innerHTML = "🚩";
+                              ghost.style.cssText = "position:absolute;top:-999px;font-size:24px;";
+                              document.body.appendChild(ghost);
+                              e.dataTransfer.setDragImage(ghost, 12, 12);
+                              setTimeout(() => document.body.removeChild(ghost), 0);
+                              e.dataTransfer.effectAllowed = "move";
+                            }}
+                            onDragEnd={() => {
+                              setDraggingFlag(false);
+                              setFlagDropTarget(null);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            title="Trascina su un'altra scena per metterla in LIVE"
+                            style={{
+                              cursor: "grab", padding: 6,
+                              filter: "drop-shadow(0 0 6px rgba(76,175,80,0.5))",
+                              transition: "transform 0.2s",
+                              userSelect: "none",
+                              display: "flex",
+                              alignItems: "center",
+                            }}
+                          >
+                            <FiFlag size={18} style={{ color: "#4caf50" }} />
+                          </div>
+                        )}
+
+                        {/* Indicatore drop target */}
+                        {isDropTarget && !isActive && (
+                          <div style={{
+                            color: "#4caf50", opacity: 0.5,
+                            animation: "pulse-flag 1s ease-in-out infinite",
+                            display: "flex",
+                            alignItems: "center",
+                          }}>
+                            <FiFlag size={18} />
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Badge LIVE */}
@@ -950,23 +989,26 @@ export default function SceneEditor({
             style={{ position: "fixed", inset: 0, zIndex: 10000 }}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
               style={{
                 position: "absolute",
                 left: contextMenu.x, top: contextMenu.y,
-                background: "linear-gradient(145deg, rgba(30,25,20,0.98), rgba(20,15,12,0.98))",
-                border: "2px solid rgba(212,175,55,0.35)",
-                borderRadius: 10, padding: 6, minWidth: 180,
-                boxShadow: "0 8px 30px rgba(0,0,0,0.8)",
+                background: "rgba(25,25,28,0.96)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 6, padding: 4, minWidth: 180,
+                boxShadow: "0 4px 24px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3)",
               }}
             >
               {/* Edit */}
               <ContextMenuItem
-                icon="spellBook" label="Modifica Scena"
-                color="var(--gold)"
+                icon={FiEdit3}
+                label="Edit Scene"
+                color="rgba(255,255,255,0.9)"
                 onClick={() => {
                   const scene = scenes.find((s) => s.id === contextMenu.sceneId);
                   if (scene) enterEditor(scene);
@@ -975,8 +1017,9 @@ export default function SceneEditor({
               />
               {/* Duplicate */}
               <ContextMenuItem
-                icon="scroll" label="Duplica Scena"
-                color="rgba(255,255,255,0.7)"
+                icon={FiCopy}
+                label="Duplicate"
+                color="rgba(255,255,255,0.9)"
                 onClick={() => {
                   duplicateScene(contextMenu.sceneId);
                   closeContextMenu();
@@ -984,20 +1027,22 @@ export default function SceneEditor({
               />
               {/* Activate on TV */}
               <ContextMenuItem
-                icon="flag" label="Trasmetti sulla TV"
-                color="#4caf50"
+                icon={FiMonitor}
+                label="Broadcast to TV"
+                color="rgba(255,255,255,0.9)"
                 onClick={() => {
                   activateScene(contextMenu.sceneId);
                   closeContextMenu();
                 }}
               />
 
-              <div style={{ height: 1, background: "rgba(212,175,55,0.15)", margin: "4px 0" }} />
+              <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "4px 0" }} />
 
               {/* Delete */}
               <ContextMenuItem
-                icon="skull" label="Elimina Scena"
-                color="#c04040"
+                icon={FiTrash2}
+                label="Delete"
+                color="rgba(239,68,68,0.95)"
                 onClick={() => {
                   deleteScene(contextMenu.sceneId);
                   closeContextMenu();
@@ -1076,20 +1121,26 @@ export default function SceneEditor({
 // ═══════════════════════════════════════════════
 //  ContextMenuItem — voce del menu right-click
 // ═══════════════════════════════════════════════
-function ContextMenuItem({ icon, label, color, onClick }) {
+function ContextMenuItem({ icon: Icon, label, color, onClick }) {
+  const isDelete = label.toLowerCase().includes('delete');
+
   return (
     <motion.button
       onClick={onClick}
-      whileHover={{ background: "rgba(212,175,55,0.12)" }}
+      whileHover={{ background: isDelete ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.08)" }}
+      whileTap={{ scale: 0.98 }}
       style={{
-        width: "100%", padding: "9px 14px",
+        width: "100%", padding: "7px 10px",
         background: "transparent", border: "none",
         color: color, textAlign: "left", cursor: "pointer",
-        borderRadius: 6, fontSize: "0.8rem", fontWeight: 600,
-        display: "flex", alignItems: "center", gap: 10,
+        borderRadius: 4, fontSize: "0.75rem", fontWeight: 500,
+        letterSpacing: "0.01em",
+        transition: "all 0.1s ease",
+        display: "flex", alignItems: "center", gap: 8,
       }}
     >
-      <DnDIcon icon={icon} size={15} /> {label}
+      <Icon size={14} style={{ flexShrink: 0 }} />
+      {label}
     </motion.button>
   );
 }

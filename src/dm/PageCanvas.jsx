@@ -1829,13 +1829,67 @@ const PageCanvas = forwardRef(function PageCanvas({
           </div>
         )}
 
-        {/* ═══ VIEW MODE: ZOOM BAR ═══ */}
+        {/* ═══ VIEW MODE: ZOOM & PAN CONTROLS ═══ */}
         <div style={{
-          position: "absolute", bottom: 16, right: 16,
-          display: "flex", flexDirection: "column", gap: 10,
-          zIndex: 50, alignItems: "center",
+          position: "absolute", top: 16, right: 16,
+          display: "flex", gap: 10,
+          zIndex: 50, alignItems: "flex-start",
         }}>
-          {/* Zoom */}
+          {/* Pan Controls (Frecce direzionali) */}
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+            background: "rgba(10,8,6,0.9)",
+            border: "1px solid rgba(212,175,55,0.25)",
+            borderRadius: 8, padding: "6px",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
+          }}>
+            {/* Up */}
+            <button onClick={() => setStagePos(prev => ({ ...prev, y: prev.y - 100 }))}
+              style={{
+                width: 26, height: 26, borderRadius: 5,
+                background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.2)",
+                color: "var(--gold)", cursor: "pointer", fontSize: "0.7rem",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>▲</button>
+
+            {/* Left, Center, Right */}
+            <div style={{ display: "flex", gap: 4 }}>
+              <button onClick={() => setStagePos(prev => ({ ...prev, x: prev.x - 100 }))}
+                style={{
+                  width: 26, height: 26, borderRadius: 5,
+                  background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.2)",
+                  color: "var(--gold)", cursor: "pointer", fontSize: "0.7rem",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>◄</button>
+
+              <button onClick={() => setStagePos({ x: 0, y: 0 })}
+                style={{
+                  width: 26, height: 26, borderRadius: 5,
+                  background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.15)",
+                  color: "rgba(212,175,55,0.6)", cursor: "pointer", fontSize: "0.6rem",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>⌂</button>
+
+              <button onClick={() => setStagePos(prev => ({ ...prev, x: prev.x + 100 }))}
+                style={{
+                  width: 26, height: 26, borderRadius: 5,
+                  background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.2)",
+                  color: "var(--gold)", cursor: "pointer", fontSize: "0.7rem",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>►</button>
+            </div>
+
+            {/* Down */}
+            <button onClick={() => setStagePos(prev => ({ ...prev, y: prev.y + 100 }))}
+              style={{
+                width: 26, height: 26, borderRadius: 5,
+                background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.2)",
+                color: "var(--gold)", cursor: "pointer", fontSize: "0.7rem",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>▼</button>
+          </div>
+
+          {/* Zoom Controls */}
           <div style={{
             display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
             background: "rgba(10,8,6,0.9)",
@@ -3054,67 +3108,76 @@ const PageCanvas = forwardRef(function PageCanvas({
           <AnimatePresence>
             {contextMenu && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
                 style={{
                   position: "absolute",
                   left: contextMenu.x,
                   top: contextMenu.y,
-                  background: "linear-gradient(145deg, rgba(30,25,20,0.98), rgba(20,15,12,0.98))",
-                  border: "2px solid rgba(212,175,55,0.4)",
-                  borderRadius: 12,
-                  padding: "8px",
-                  minWidth: 180,
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.8)",
+                  background: "rgba(25,25,28,0.96)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: 6,
+                  padding: "4px",
+                  minWidth: 200,
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3)",
                   zIndex: 10000,
                 }}
               >
                 {contextMenu.layerName === "map" && (
                   <motion.button
-                    whileHover={{ background: "rgba(212,175,55,0.2)" }}
+                    whileHover={{ background: "rgba(255,255,255,0.08)" }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => setAsMainMap(contextMenu.layerName, contextMenu.objectId)}
                     style={{
                       width: "100%",
-                      padding: "10px 14px",
+                      padding: "8px 12px",
                       background: "transparent",
                       border: "none",
-                      color: "var(--gold)",
+                      color: "rgba(255,255,255,0.9)",
                       textAlign: "left",
                       cursor: "pointer",
-                      borderRadius: 8,
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
+                      borderRadius: 4,
+                      fontSize: "0.8rem",
+                      fontWeight: 500,
+                      transition: "all 0.1s ease",
+                      letterSpacing: "0.01em",
                     }}
                   >
-                    <GiScrollQuill /> Imposta come Mappa Principale
+                    Set as Main Map
                   </motion.button>
                 )}
+                {contextMenu.layerName === "map" && (
+                  <div style={{
+                    height: 1,
+                    background: "rgba(255,255,255,0.08)",
+                    margin: "4px 0",
+                  }} />
+                )}
                 <motion.button
-                  whileHover={{ background: "rgba(212,175,55,0.2)" }}
+                  whileHover={{ background: "rgba(239,68,68,0.12)" }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     deleteObject(contextMenu.layerName, contextMenu.objectId);
                   }}
                   style={{
                     width: "100%",
-                    padding: "10px 14px",
+                    padding: "8px 12px",
                     background: "transparent",
                     border: "none",
-                    color: "#ff4444",
+                    color: "rgba(239,68,68,0.95)",
                     textAlign: "left",
                     cursor: "pointer",
-                    borderRadius: 8,
-                    fontSize: "0.85rem",
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
+                    borderRadius: 4,
+                    fontSize: "0.8rem",
+                    fontWeight: 500,
+                    transition: "all 0.1s ease",
+                    letterSpacing: "0.01em",
                   }}
                 >
-                  <span>✗</span> Elimina
+                  Delete
                 </motion.button>
               </motion.div>
             )}
