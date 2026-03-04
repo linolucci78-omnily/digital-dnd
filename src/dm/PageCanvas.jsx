@@ -10,7 +10,8 @@ import { supabase } from "../lib/supabase";
 import useImage from "use-image";
 import Modal from "../components/Modal";
 import { GiScrollQuill, GiWoodPile, GiCrossedSwords, GiEvilEyes, GiBorderedShield, GiTabletopPlayers } from "react-icons/gi";
-import { FaEraser } from "react-icons/fa";
+import { FaEraser, FaUsers, FaChessBoard } from "react-icons/fa";
+import { BsGrid3X3 } from "react-icons/bs";
 
 const PageCanvas = forwardRef(function PageCanvas({
   scene,
@@ -125,7 +126,7 @@ const PageCanvas = forwardRef(function PageCanvas({
       // Enable grid automatically when main map is set
       setGridSettings(prev => ({ ...prev, enabled: true }));
       setContextMenu(null);
-      console.log("✓ Set as main map - grid enabled and covering this image area");
+      console.log("Set as main map - grid enabled and covering this image area");
     }
   };
 
@@ -135,7 +136,7 @@ const PageCanvas = forwardRef(function PageCanvas({
       ...prev,
       mapImage: null,
     }));
-    console.log("✓ Main map cleared - grid back to full canvas");
+    console.log("Main map cleared - grid back to full canvas");
   };
 
   // Start grid alignment mode
@@ -174,7 +175,7 @@ const PageCanvas = forwardRef(function PageCanvas({
     setAlignStart(null);
     setAlignEnd(null);
 
-    console.log(`✓ Grid aligned: ${newGridSize}px, offset (${Math.round(offsetX)}, ${Math.round(offsetY)})`);
+    console.log(`Grid aligned: ${newGridSize}px, offset (${Math.round(offsetX)}, ${Math.round(offsetY)})`);
   };
 
   // Snap coordinate to grid
@@ -206,28 +207,31 @@ const PageCanvas = forwardRef(function PageCanvas({
     }));
   };
 
-  // Reset fog — tutto nascosto
-  const resetFog = () => {
+  // Reveal all — tutto visibile (rimuove tutte le aree nascoste)
+  const revealAllFog = () => {
     setPageSettings(prev => ({
       ...prev,
       fogOfWar: {
         ...prev.fogOfWar,
-        revealedAreas: [],
         hiddenAreas: [],
       }
     }));
   };
 
-  // Reveal all — tutto visibile
-  const revealAllFog = () => {
-    const w = (pageSettings.pageWidth || 25) * (gridSettings?.size || 40);
-    const h = (pageSettings.pageHeight || 25) * (gridSettings?.size || 40);
+  // Hide all — nascondi tutta la mappa
+  const hideAllFog = () => {
+    if (!pageSettings.mapImage) return;
     setPageSettings(prev => ({
       ...prev,
       fogOfWar: {
         ...prev.fogOfWar,
-        revealedAreas: [{ type: "rect", x: 0, y: 0, width: w, height: h }],
-        hiddenAreas: [],
+        hiddenAreas: [{
+          type: "rect",
+          x: pageSettings.mapImage.x || 0,
+          y: pageSettings.mapImage.y || 0,
+          width: pageSettings.mapImage.width,
+          height: pageSettings.mapImage.height
+        }],
       }
     }));
   };
@@ -377,7 +381,7 @@ const PageCanvas = forwardRef(function PageCanvas({
             // Restore grid settings
             if (state.gridSettings) {
               setGridSettings(state.gridSettings);
-              console.log("✓ Grid settings loaded:", state.gridSettings);
+              console.log("Grid settings loaded:", state.gridSettings);
             }
 
             // Restore page settings
@@ -396,11 +400,11 @@ const PageCanvas = forwardRef(function PageCanvas({
                   offsetX: alignedOffsetX,
                   offsetY: alignedOffsetY
                 }));
-                console.log("✓ Grid auto-aligned to map:", { alignedOffsetX, alignedOffsetY });
+                console.log("Grid auto-aligned to map:", { alignedOffsetX, alignedOffsetY });
               }
             }
 
-            console.log("✓ Canvas state loaded from database");
+            console.log("Canvas state loaded from database");
           });
         }
 
@@ -436,7 +440,7 @@ const PageCanvas = forwardRef(function PageCanvas({
         if (error) throw error;
 
         setCharacters(data || []);
-        console.log(`✓ Loaded ${data?.length || 0} characters for token library`);
+        console.log(`Loaded ${data?.length || 0} characters for token library`);
       } catch (err) {
         console.error("Error loading characters:", err);
       }
@@ -460,7 +464,7 @@ const PageCanvas = forwardRef(function PageCanvas({
         if (error) throw error;
 
         setNpcs(data || []);
-        console.log(`✓ Loaded ${data?.length || 0} NPCs for token library`);
+        console.log(`Loaded ${data?.length || 0} NPCs for token library`);
       } catch (err) {
         console.error("Error loading NPCs:", err);
       }
@@ -492,7 +496,7 @@ const PageCanvas = forwardRef(function PageCanvas({
 
       if (error) throw error;
 
-      console.log("✓ Canvas state auto-saved");
+      console.log("Canvas state auto-saved");
 
       // Broadcast update to TV/players
       if (tvChannel) {
@@ -834,7 +838,7 @@ const PageCanvas = forwardRef(function PageCanvas({
         },
       }));
 
-      console.log(`✓ Image added to ${targetLayer} layer at (${Math.round(x)}, ${Math.round(y)})`);
+      console.log(`Image added to ${targetLayer} layer at (${Math.round(x)}, ${Math.round(y)})`);
       setUploading(false);
     } catch (error) {
       console.error("Upload error:", error);
@@ -949,7 +953,7 @@ const PageCanvas = forwardRef(function PageCanvas({
       },
     }));
 
-    console.log(`✓ Added NPC "${npc.name}" as token on map`);
+    console.log(`Added NPC "${npc.name}" as token on map`);
   };
 
   // Add Character as Token
@@ -1017,7 +1021,7 @@ const PageCanvas = forwardRef(function PageCanvas({
         .update({ map_x: mapCenterX, map_y: mapCenterY })
         .eq("id", character.id);
 
-      console.log(`✓ Added character "${character.name}" as token on map at (${mapCenterX}%, ${mapCenterY}%)`);
+      console.log(`Added character "${character.name}" as token on map at (${mapCenterX}%, ${mapCenterY}%)`);
     } catch (err) {
       console.error("Error updating character coordinates:", err);
     }
@@ -1028,7 +1032,7 @@ const PageCanvas = forwardRef(function PageCanvas({
     if (!gridSettings.enabled) {
       return [];
     }
-    console.log("✓ Generating grid lines, size:", gridSettings.size);
+    console.log("Generating grid lines, size:", gridSettings.size);
     const lines = [];
     const { size, offsetX, offsetY } = gridSettings;
 
@@ -1044,7 +1048,7 @@ const PageCanvas = forwardRef(function PageCanvas({
       gridMinY = pageSettings.mapImage.y || 0;
       gridMaxX = gridMinX + (pageSettings.mapImage.width || canvasSize.width);
       gridMaxY = gridMinY + (pageSettings.mapImage.height || canvasSize.height);
-      console.log(`✓ Grid limited to map area: (${gridMinX}, ${gridMinY}) to (${gridMaxX}, ${gridMaxY})`);
+      console.log(`Grid limited to map area: (${gridMinX}, ${gridMinY}) to (${gridMaxX}, ${gridMaxY})`);
     }
 
     // Vertical lines
@@ -1665,51 +1669,24 @@ const PageCanvas = forwardRef(function PageCanvas({
             })}
           </Layer>
 
-          {/* Fog of War Layer */}
+          {/* Fog of War Layer - Mostra solo le aree NASCOSTE */}
           {pageSettings.fogOfWar.enabled && (
             <Layer listening={false}>
-              {/* Base fog — copre tutta l'area mappa */}
-              <Rect
-                x={0} y={0}
-                width={(pageSettings.pageWidth || 25) * (gridSettings?.size || 40)}
-                height={(pageSettings.pageHeight || 25) * (gridSettings?.size || 40)}
-                fill="#000000"
-                opacity={0.9}
-              />
-              {/* Revealed areas — tagliano buchi nel fog */}
-              {(pageSettings.fogOfWar.revealedAreas || []).map((area, idx) => {
-                if (area.type === "circle") {
-                  return (
-                    <Circle key={`r-${idx}`}
-                      x={area.cx} y={area.cy} radius={area.radius}
-                      fill="#000000" globalCompositeOperation="destination-out"
-                    />
-                  );
-                }
-                if (area.type === "polygon" && area.points?.length >= 4) {
-                  return (
-                    <Line key={`r-${idx}`}
-                      points={area.points} closed fill="#000000"
-                      globalCompositeOperation="destination-out"
-                    />
-                  );
-                }
-                // Default: rect (backward compatible)
-                return (
-                  <Rect key={`r-${idx}`}
-                    x={area.x} y={area.y}
-                    width={area.width} height={area.height}
-                    fill="#000000" globalCompositeOperation="destination-out"
-                  />
-                );
-              })}
-              {/* Hidden areas — ri-disegnano fog sopra le rivelate */}
+              {/* Aree nascoste - Opache per i giocatori */}
               {(pageSettings.fogOfWar.hiddenAreas || []).map((area, idx) => {
                 if (area.type === "circle") {
                   return (
                     <Circle key={`h-${idx}`}
                       x={area.cx} y={area.cy} radius={area.radius}
-                      fill="#000000" opacity={0.9}
+                      fill="#000000" opacity={0.98}
+                    />
+                  );
+                }
+                if (area.type === "polygon" && area.points?.length >= 4) {
+                  return (
+                    <Line key={`h-${idx}`}
+                      points={area.points} closed
+                      fill="#000000" opacity={0.98}
                     />
                   );
                 }
@@ -1717,7 +1694,7 @@ const PageCanvas = forwardRef(function PageCanvas({
                   <Rect key={`h-${idx}`}
                     x={area.x} y={area.y}
                     width={area.width} height={area.height}
-                    fill="#000000" opacity={0.9}
+                    fill="#000000" opacity={0.98}
                   />
                 );
               })}
@@ -2135,7 +2112,7 @@ const PageCanvas = forwardRef(function PageCanvas({
                 {[
                   { id: "ruler", icon: "⟷", label: "Ruler" },
                   { id: "ping", icon: "◉", label: "Ping" },
-                  { id: "fog", icon: "◐", label: "Fog" },
+                  { id: "fog", icon: "≋", label: "Fog" },
                   { id: "erase", icon: "eraser", label: "Gomma" },
                 ].map((t) => (
                   <motion.button
@@ -2185,12 +2162,11 @@ const PageCanvas = forwardRef(function PageCanvas({
               background: "rgba(0,0,0,0.6)",
               borderBottom: "1px solid rgba(76,175,80,0.2)",
             }}>
-              {/* Fog mode buttons */}
+              {/* Fog mode buttons - Tutti nascondono aree */}
               {[
                 { id: "rect", label: "Rettangolo", icon: "▭" },
                 { id: "brush", label: "Pennello", icon: "●" },
                 { id: "polygon", label: "Poligono", icon: "⬠" },
-                { id: "hide", label: "Nascondi", icon: "■" },
               ].map((m) => (
                 <button
                   key={m.id}
@@ -2201,9 +2177,7 @@ const PageCanvas = forwardRef(function PageCanvas({
                     background: fogMode === m.id ? "rgba(76,175,80,0.25)" : "transparent",
                     border: fogMode === m.id ? "1px solid rgba(76,175,80,0.5)" : "1px solid rgba(255,255,255,0.1)",
                     borderRadius: 6,
-                    color: fogMode === m.id
-                      ? (m.id === "hide" ? "#ff6b6b" : "#4caf50")
-                      : "rgba(255,255,255,0.5)",
+                    color: fogMode === m.id ? "#4caf50" : "rgba(255,255,255,0.5)",
                     cursor: "pointer",
                     fontSize: "0.75rem",
                     display: "flex", alignItems: "center", gap: 6,
@@ -2215,8 +2189,8 @@ const PageCanvas = forwardRef(function PageCanvas({
 
               <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
 
-              {/* Brush size — solo per brush e hide */}
-              {(fogMode === "brush" || fogMode === "hide") && (
+              {/* Brush size */}
+              {fogMode === "brush" && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.4)" }}>Dimensione:</span>
                   <input
@@ -2234,7 +2208,7 @@ const PageCanvas = forwardRef(function PageCanvas({
                 <button
                   onClick={() => {
                     if (fogPolygonPoints.length >= 6) {
-                      revealFogArea({ type: "polygon", points: [...fogPolygonPoints] });
+                      hideFogArea({ type: "polygon", points: [...fogPolygonPoints] });
                       setFogPolygonPoints([]);
                     }
                   }}
@@ -2285,31 +2259,31 @@ const PageCanvas = forwardRef(function PageCanvas({
               {/* Reveal all */}
               <button
                 onClick={revealAllFog}
-                title="Rivela tutto"
+                title="Rimuovi tutta la fog (mappa visibile)"
                 style={{
                   padding: "6px 10px",
                   background: "transparent",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 6, color: "rgba(255,255,255,0.4)",
+                  border: "1px solid rgba(76,175,80,0.3)",
+                  borderRadius: 6, color: "#4caf50",
                   cursor: "pointer", fontSize: "0.65rem",
                 }}
               >
                 Rivela Tutto
               </button>
 
-              {/* Reset fog */}
+              {/* Hide all */}
               <button
-                onClick={resetFog}
-                title="Nascondi tutto"
+                onClick={hideAllFog}
+                title="Copri tutta la mappa"
                 style={{
                   padding: "6px 10px",
                   background: "transparent",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,107,107,0.3)",
                   borderRadius: 6, color: "#ff6b6b",
                   cursor: "pointer", fontSize: "0.65rem",
                 }}
               >
-                Reset Fog
+                Nascondi Tutto
               </button>
             </div>
           )}
@@ -2497,20 +2471,16 @@ const PageCanvas = forwardRef(function PageCanvas({
                 return;
               }
 
-              // Fog of war tools
+              // Fog of war tools - Ora tutti gli strumenti NASCONDONO (aggiungono a hiddenAreas)
               if (tool === "fog" && pageSettings.fogOfWar.enabled) {
                 if (fogMode === "rect") {
                   setFogRevealStart({ x: canvasPos.x, y: canvasPos.y, width: 0, height: 0 });
                 } else if (fogMode === "brush") {
-                  // Aggiungi cerchio alla posizione corrente
-                  revealFogArea({ type: "circle", cx: canvasPos.x, cy: canvasPos.y, radius: fogBrushSize });
-                  setIsDrawing(true);
-                } else if (fogMode === "hide") {
-                  // Nascondi area
+                  // Aggiungi cerchio alle aree nascoste
                   hideFogArea({ type: "circle", cx: canvasPos.x, cy: canvasPos.y, radius: fogBrushSize });
                   setIsDrawing(true);
                 } else if (fogMode === "polygon") {
-                  // Aggiungi punto al poligono — doppio click chiude
+                  // Aggiungi punto al poligono
                   setFogPolygonPoints(prev => [...prev, canvasPos.x, canvasPos.y]);
                 }
                 return;
@@ -2588,13 +2558,8 @@ const PageCanvas = forwardRef(function PageCanvas({
                 });
               }
 
-              // Brush fog reveal — continua ad aggiungere cerchi durante drag
+              // Brush fog — continua ad aggiungere cerchi durante drag
               if (tool === "fog" && isDrawing && fogMode === "brush") {
-                revealFogArea({ type: "circle", cx: canvasPos.x, cy: canvasPos.y, radius: fogBrushSize });
-              }
-
-              // Hide fog — continua a nascondere durante drag
-              if (tool === "fog" && isDrawing && fogMode === "hide") {
                 hideFogArea({ type: "circle", cx: canvasPos.x, cy: canvasPos.y, radius: fogBrushSize });
               }
             }}
@@ -2626,19 +2591,19 @@ const PageCanvas = forwardRef(function PageCanvas({
                 setCurrentDrawing(null);
               }
 
-              // Complete fog reveal
+              // Complete fog drawing (rettangolo)
               if (tool === "fog" && fogRevealStart && fogMode === "rect" && (fogRevealStart.width !== 0 || fogRevealStart.height !== 0)) {
                 const x = fogRevealStart.width < 0 ? fogRevealStart.x + fogRevealStart.width : fogRevealStart.x;
                 const y = fogRevealStart.height < 0 ? fogRevealStart.y + fogRevealStart.height : fogRevealStart.y;
                 const width = Math.abs(fogRevealStart.width);
                 const height = Math.abs(fogRevealStart.height);
 
-                revealFogArea({ type: "rect", x, y, width, height });
+                hideFogArea({ type: "rect", x, y, width, height });
                 setFogRevealStart(null);
               }
 
-              // Stop brush/hide drawing
-              if (tool === "fog" && isDrawing && (fogMode === "brush" || fogMode === "hide")) {
+              // Stop brush drawing
+              if (tool === "fog" && isDrawing && fogMode === "brush") {
                 setIsDrawing(false);
               }
             }}
@@ -3022,43 +2987,61 @@ const PageCanvas = forwardRef(function PageCanvas({
               )}
             </Layer>
 
-            {/* Fog of War Layer */}
+            {/* Fog of War Layer - Mostra solo le aree NASCOSTE (disegnate dal DM) */}
             {pageSettings.fogOfWar.enabled && pageSettings.mapImage && (
               <Layer listening={tool === "fog"}>
-                {/* Full fog overlay */}
-                <Rect
-                  x={pageSettings.mapImage.x || 0}
-                  y={pageSettings.mapImage.y || 0}
-                  width={pageSettings.mapImage.width}
-                  height={pageSettings.mapImage.height}
-                  fill="rgba(0, 0, 0, 0.85)"
-                  listening={false}
-                />
+                {/* Aree nascoste - Semi-trasparente in EDIT, opache in VIEW */}
+                {(pageSettings.fogOfWar.hiddenAreas || []).map((area, idx) => {
+                  const fogOpacity = mode === "edit" ? 0.4 : 0.98;
+                  if (area.type === "circle") {
+                    return (
+                      <Circle key={`h-${idx}`}
+                        x={area.cx} y={area.cy} radius={area.radius}
+                        fill={`rgba(0, 0, 0, ${fogOpacity})`}
+                        listening={false}
+                      />
+                    );
+                  }
+                  if (area.type === "polygon" && area.points?.length >= 4) {
+                    return (
+                      <Line key={`h-${idx}`}
+                        points={area.points} closed
+                        fill={`rgba(0, 0, 0, ${fogOpacity})`}
+                        listening={false}
+                      />
+                    );
+                  }
+                  return (
+                    <Rect key={`h-${idx}`}
+                      x={area.x} y={area.y}
+                      width={area.width} height={area.height}
+                      fill={`rgba(0, 0, 0, ${fogOpacity})`}
+                      listening={false}
+                    />
+                  );
+                })}
 
-                {/* Revealed areas (cut out from fog) */}
-                {pageSettings.fogOfWar.revealedAreas.map((area, idx) => (
+                {/* Preview del fog reveal in corso (rettangolo tratteggiato) */}
+                {fogRevealStart && fogMode === "rect" && (
                   <Rect
-                    key={`revealed-${idx}`}
-                    x={area.x}
-                    y={area.y}
-                    width={area.width}
-                    height={area.height}
-                    fill="transparent"
-                    globalCompositeOperation="destination-out"
+                    x={fogRevealStart.width < 0 ? fogRevealStart.x + fogRevealStart.width : fogRevealStart.x}
+                    y={fogRevealStart.height < 0 ? fogRevealStart.y + fogRevealStart.height : fogRevealStart.y}
+                    width={Math.abs(fogRevealStart.width || 0)}
+                    height={Math.abs(fogRevealStart.height || 0)}
+                    stroke="rgba(76,175,80,0.8)" strokeWidth={2 / stageScale}
+                    dash={[8 / stageScale, 4 / stageScale]}
+                    fill="rgba(76,175,80,0.15)"
                     listening={false}
                   />
-                ))}
+                )}
 
-                {/* Drawing preview */}
-                {tool === "fog" && fogRevealStart && (
-                  <Rect
-                    x={fogRevealStart.x}
-                    y={fogRevealStart.y}
-                    width={fogRevealStart.width || 0}
-                    height={fogRevealStart.height || 0}
-                    stroke="#00ff00"
-                    strokeWidth={2}
-                    dash={[10, 5]}
+                {/* Preview polygon in costruzione */}
+                {fogPolygonPoints.length >= 2 && fogMode === "polygon" && (
+                  <Line
+                    points={fogPolygonPoints}
+                    stroke="rgba(76,175,80,0.8)" strokeWidth={2 / stageScale}
+                    dash={[8 / stageScale, 4 / stageScale]}
+                    fill="rgba(76,175,80,0.1)" closed={fogPolygonPoints.length >= 6}
                     listening={false}
                   />
                 )}
@@ -3344,7 +3327,7 @@ const PageCanvas = forwardRef(function PageCanvas({
         </CollapsibleSection>
 
         {/* Player Characters Library */}
-        <CollapsibleSection id="characters" title="Gruppo" icon="🛡️">
+        <CollapsibleSection id="characters" title="Gruppo" icon={<GiBorderedShield />}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {characters.length === 0 ? (
               <div style={{
@@ -3437,7 +3420,7 @@ const PageCanvas = forwardRef(function PageCanvas({
         </CollapsibleSection>
 
         {/* NPC Library */}
-        <CollapsibleSection id="npcs" title="NPC Libreria" icon="👥">
+        <CollapsibleSection id="npcs" title="NPC Libreria" icon={<FaUsers />}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {npcs.length === 0 ? (
               <div style={{
@@ -3599,43 +3582,107 @@ const PageCanvas = forwardRef(function PageCanvas({
         </CollapsibleSection>
 
         {/* Grid */}
-        <CollapsibleSection id="grid" title="Griglia" icon="⊞">
+        <CollapsibleSection id="grid" title="Griglia" icon={<BsGrid3X3 />}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Toggle */}
-            <label style={{
+            <div style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
-              cursor: "pointer",
-              fontSize: "0.75rem",
-              color: "rgba(255,255,255,0.7)",
+              justifyContent: "space-between",
             }}>
-              <input
-                type="checkbox"
-                checked={gridSettings.enabled}
-                onChange={(e) => setGridSettings({ ...gridSettings, enabled: e.target.checked })}
-                style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--gold)" }}
-              />
-              Mostra Griglia
-            </label>
+              <span style={{
+                fontSize: "0.75rem",
+                color: "rgba(255,255,255,0.7)",
+                fontWeight: 600,
+              }}>
+                Mostra Griglia
+              </span>
+              <div
+                onClick={() => setGridSettings({ ...gridSettings, enabled: !gridSettings.enabled })}
+                style={{
+                  position: "relative",
+                  width: 44,
+                  height: 24,
+                  borderRadius: 12,
+                  background: gridSettings.enabled
+                    ? "linear-gradient(135deg, rgba(212,175,55,0.8), rgba(212,175,55,0.5))"
+                    : "rgba(255,255,255,0.15)",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  border: gridSettings.enabled
+                    ? "1px solid rgba(212,175,55,0.6)"
+                    : "1px solid rgba(255,255,255,0.2)",
+                }}
+              >
+                <motion.div
+                  animate={{
+                    x: gridSettings.enabled ? 20 : 2,
+                  }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: gridSettings.enabled
+                      ? "#fff"
+                      : "rgba(255,255,255,0.7)",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                  }}
+                />
+              </div>
+            </div>
 
             {/* Snap to Grid */}
-            <label style={{
+            <div style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
-              cursor: "pointer",
-              fontSize: "0.75rem",
-              color: "rgba(255,255,255,0.7)",
+              justifyContent: "space-between",
             }}>
-              <input
-                type="checkbox"
-                checked={gridSettings.snapToGrid}
-                onChange={(e) => setGridSettings({ ...gridSettings, snapToGrid: e.target.checked })}
-                style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--gold)" }}
-              />
-              Aggancia alla Griglia
-            </label>
+              <span style={{
+                fontSize: "0.75rem",
+                color: "rgba(255,255,255,0.7)",
+                fontWeight: 600,
+              }}>
+                Aggancia alla Griglia
+              </span>
+              <div
+                onClick={() => setGridSettings({ ...gridSettings, snapToGrid: !gridSettings.snapToGrid })}
+                style={{
+                  position: "relative",
+                  width: 44,
+                  height: 24,
+                  borderRadius: 12,
+                  background: gridSettings.snapToGrid
+                    ? "linear-gradient(135deg, rgba(212,175,55,0.8), rgba(212,175,55,0.5))"
+                    : "rgba(255,255,255,0.15)",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  border: gridSettings.snapToGrid
+                    ? "1px solid rgba(212,175,55,0.6)"
+                    : "1px solid rgba(255,255,255,0.2)",
+                }}
+              >
+                <motion.div
+                  animate={{
+                    x: gridSettings.snapToGrid ? 20 : 2,
+                  }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: gridSettings.snapToGrid
+                      ? "#fff"
+                      : "rgba(255,255,255,0.7)",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                  }}
+                />
+              </div>
+            </div>
 
             {/* Alignment Tool */}
             {pageSettings.mapImage && (
@@ -3658,8 +3705,8 @@ const PageCanvas = forwardRef(function PageCanvas({
                 }}
               >
                 {gridAlignMode
-                  ? (alignStart && alignEnd ? "✓ Applica Allineamento" : "Traccia Quadrato 3x3...")
-                  : "⊞ Allinea Griglia"}
+                  ? (alignStart && alignEnd ? "Applica Allineamento" : "Traccia Quadrato 3x3...")
+                  : "Allinea Griglia"}
               </motion.button>
             )}
 
@@ -3869,25 +3916,57 @@ const PageCanvas = forwardRef(function PageCanvas({
                   textTransform: "uppercase",
                   letterSpacing: "0.5px",
                 }}>
-                  🌫️ Nebbia di Guerra
+                  Nebbia di Guerra
                 </div>
-                <label style={{
+                <div style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 8,
-                  cursor: "pointer",
-                  fontSize: "0.75rem",
-                  color: "rgba(255,255,255,0.7)",
+                  justifyContent: "space-between",
                   marginBottom: 10,
                 }}>
-                  <input
-                    type="checkbox"
-                    checked={pageSettings.fogOfWar.enabled}
-                    onChange={toggleFogOfWar}
-                    style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--gold)" }}
-                  />
-                  Abilita Nebbia
-                </label>
+                  <span style={{
+                    fontSize: "0.75rem",
+                    color: "rgba(255,255,255,0.7)",
+                    fontWeight: 600,
+                  }}>
+                    Abilita Nebbia
+                  </span>
+                  <div
+                    onClick={toggleFogOfWar}
+                    style={{
+                      position: "relative",
+                      width: 44,
+                      height: 24,
+                      borderRadius: 12,
+                      background: pageSettings.fogOfWar.enabled
+                        ? "linear-gradient(135deg, rgba(76,175,80,0.8), rgba(76,175,80,0.5))"
+                        : "rgba(255,255,255,0.15)",
+                      cursor: "pointer",
+                      transition: "all 0.3s ease",
+                      border: pageSettings.fogOfWar.enabled
+                        ? "1px solid rgba(76,175,80,0.6)"
+                        : "1px solid rgba(255,255,255,0.2)",
+                    }}
+                  >
+                    <motion.div
+                      animate={{
+                        x: pageSettings.fogOfWar.enabled ? 20 : 2,
+                      }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      style={{
+                        position: "absolute",
+                        top: 2,
+                        width: 20,
+                        height: 20,
+                        borderRadius: "50%",
+                        background: pageSettings.fogOfWar.enabled
+                          ? "#fff"
+                          : "rgba(255,255,255,0.7)",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      }}
+                    />
+                  </div>
+                </div>
 
                 {pageSettings.fogOfWar.enabled && (
                   <>
@@ -3896,25 +3975,25 @@ const PageCanvas = forwardRef(function PageCanvas({
                       color: "rgba(255,255,255,0.5)",
                       marginBottom: 10,
                     }}>
-                      Usa il tool "Nebbia" per rivelare aree. {pageSettings.fogOfWar.revealedAreas.length} aree rivelate.
+                      Usa il tool "Nebbia" per nascondere aree. {(pageSettings.fogOfWar.hiddenAreas || []).length} aree nascoste.
                     </div>
-                    {pageSettings.fogOfWar.revealedAreas.length > 0 && (
+                    {(pageSettings.fogOfWar.hiddenAreas || []).length > 0 && (
                       <motion.button
-                        onClick={clearAllFog}
-                        whileHover={{ background: "rgba(255,0,0,0.2)" }}
+                        onClick={revealAllFog}
+                        whileHover={{ background: "rgba(76,175,80,0.2)" }}
                         style={{
                           width: "100%",
                           padding: "6px",
                           background: "rgba(255,255,255,0.05)",
-                          border: "1px solid rgba(255,0,0,0.3)",
+                          border: "1px solid rgba(76,175,80,0.3)",
                           borderRadius: 6,
-                          color: "#ff6666",
+                          color: "#4caf50",
                           cursor: "pointer",
                           fontSize: "0.7rem",
                           fontWeight: 600,
                         }}
                       >
-                        Ripristina Tutta la Nebbia
+                        Rimuovi Tutte le Aree Nascoste
                       </motion.button>
                     )}
                   </>
@@ -3936,7 +4015,7 @@ const PageCanvas = forwardRef(function PageCanvas({
                   textTransform: "uppercase",
                   letterSpacing: "0.5px",
                 }}>
-                  🌫️ Nebbia di Guerra
+                  Nebbia di Guerra
                 </div>
                 <div style={{
                   fontSize: "0.7rem",
@@ -4137,8 +4216,12 @@ const PageCanvas = forwardRef(function PageCanvas({
                 color: "var(--gold)",
                 marginBottom: 24,
                 textAlign: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
               }}>
-                ⚔️ Editor Token
+                <GiCrossedSwords /> Editor Token
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
@@ -4342,30 +4425,58 @@ const PageCanvas = forwardRef(function PageCanvas({
                     { key: "showName", label: "Mostra Nome" },
                     { key: "showACBadge", label: "Mostra AC Badge" },
                   ].map(option => (
-                    <label
+                    <div
                       key={option.key}
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 12,
-                        cursor: "pointer",
+                        justifyContent: "space-between",
                         padding: "10px 12px",
                         background: "rgba(255,255,255,0.05)",
                         borderRadius: 8,
                         border: "1px solid rgba(255,255,255,0.1)",
                       }}
                     >
-                      <input
-                        type="checkbox"
-                        checked={tokenEditorModal.config[option.key]}
-                        onChange={(e) => setTokenEditorModal({
+                      <span style={{ fontSize: "0.85rem", color: "#fff", fontWeight: 600 }}>{option.label}</span>
+                      <div
+                        onClick={() => setTokenEditorModal({
                           ...tokenEditorModal,
-                          config: { ...tokenEditorModal.config, [option.key]: e.target.checked },
+                          config: { ...tokenEditorModal.config, [option.key]: !tokenEditorModal.config[option.key] },
                         })}
-                        style={{ width: 18, height: 18, cursor: "pointer" }}
-                      />
-                      <span style={{ fontSize: "0.85rem", color: "#fff" }}>{option.label}</span>
-                    </label>
+                        style={{
+                          position: "relative",
+                          width: 44,
+                          height: 24,
+                          borderRadius: 12,
+                          background: tokenEditorModal.config[option.key]
+                            ? "linear-gradient(135deg, rgba(212,175,55,0.8), rgba(212,175,55,0.5))"
+                            : "rgba(255,255,255,0.15)",
+                          cursor: "pointer",
+                          transition: "all 0.3s ease",
+                          border: tokenEditorModal.config[option.key]
+                            ? "1px solid rgba(212,175,55,0.6)"
+                            : "1px solid rgba(255,255,255,0.2)",
+                        }}
+                      >
+                        <motion.div
+                          animate={{
+                            x: tokenEditorModal.config[option.key] ? 20 : 2,
+                          }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          style={{
+                            position: "absolute",
+                            top: 2,
+                            width: 20,
+                            height: 20,
+                            borderRadius: "50%",
+                            background: tokenEditorModal.config[option.key]
+                              ? "#fff"
+                              : "rgba(255,255,255,0.7)",
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                          }}
+                        />
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -4404,9 +4515,13 @@ const PageCanvas = forwardRef(function PageCanvas({
                     fontSize: "0.9rem",
                     fontWeight: 700,
                     boxShadow: "0 0 20px rgba(212,175,55,0.4)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
                   }}
                 >
-                  ⚔️ Crea Token sulla Mappa
+                  <GiCrossedSwords /> Crea Token sulla Mappa
                 </button>
               </div>
             </motion.div>
